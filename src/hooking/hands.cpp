@@ -5,9 +5,9 @@ struct ActorWiiU {
     uint32_t vtable;
     BEType<uint32_t> baseProcPtr;
     uint8_t unk_08[0x1F8 - 0x08];
-    Matrix34 mtx;
+    BEMatrix34 mtx;
     uint32_t physicsMtxPtr;
-    Matrix34 homeMtx;
+    BEMatrix34 homeMtx;
     Vec3 velocity;
     Vec3 angularVelocity;
     Vec3 scale;
@@ -20,9 +20,9 @@ struct ActorWiiUOrig {
     uint32_t physicsMainBodyPtr; // 0xF4
     uint32_t physicsTgtBodyPtr; // 0xF8
     uint8_t unk_FC[0x1F8 - 0xFC];
-    Matrix34 mtx; // 0x1F8
+    BEMatrix34 mtx; // 0x1F8
     uint32_t physicsMtxPtr;
-    Matrix34 homeMtx;
+    BEMatrix34 homeMtx;
     Vec3 velocity;
     Vec3 angularVelocity;
     Vec3 scale;
@@ -31,6 +31,10 @@ struct ActorWiiUOrig {
 
 std::vector<ActorWiiU> s_actors;
 std::vector<uint32_t> s_actorPtrs;
+
+std::vector<std::string> s_currActorNames;
+std::vector<std::string> s_prevActorNames;
+
 
 void CemuHooks::hook_UpdateActorList(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
@@ -43,6 +47,22 @@ void CemuHooks::hook_UpdateActorList(PPCInterpreter_t* hCPU) {
     if (hCPU->gpr[5] == 0) {
         //Log::print("Clearing actor list");
         s_actors.clear();
+
+        for (std::string& actor : s_currActorNames) {
+            if (std::find(s_prevActorNames.begin(), s_prevActorNames.end(), actor) == s_prevActorNames.end()) {
+                // This actor is new
+                Log::print("Actor {} has appeared", actor);
+            }
+        }
+        for (std::string& actor : s_prevActorNames) {
+            if (std::find(s_currActorNames.begin(), s_currActorNames.end(), actor) == s_currActorNames.end()) {
+                // This actor has been removed
+                Log::print("Actor {} has been removed", actor);
+            }
+        }
+        s_prevActorNames = s_currActorNames;
+        s_currActorNames.clear();
+
         s_actorPtrs.clear();
     }
 
@@ -56,16 +76,18 @@ void CemuHooks::hook_UpdateActorList(PPCInterpreter_t* hCPU) {
 
     char* actorName = (char*)s_memoryBaseAddress + actorPtrUnderscore;
 
-    if (strcmp(actorName, "FldObj_PushRock_A_M_01") == 0) {
-        // Log::print("Updating actor list [{}/{}] {:08x} - {}", hCPU->gpr[5], hCPU->gpr[7], hCPU->gpr[6], actorName);
+    if (actorName != nullptr && actorName[0] != '\0') {
+        s_currActorNames.emplace_back(std::format("{:08x}: ", hCPU->gpr[6])+actorName);
+    }
+
+    if (strcmp(actorName, "Weapon_Sword_056") == 0) {
+        Log::print("Updating actor list [{}/{}] {:08x} - {}", hCPU->gpr[5], hCPU->gpr[7], hCPU->gpr[6], actorName);
         // float velocityY = 0.0f;
         // readMemoryBE(hCPU->gpr[6] + offsetof(ActorWiiU, velocity.y), &velocityY);
         // velocityY = velocityY * 1.5f;
         // writeMemoryBE(hCPU->gpr[6] + offsetof(ActorWiiU, velocity.y), &velocityY);
         s_actorPtrs.emplace_back(hCPU->gpr[6]);
     }
-
-    //Log::print("Updating actor list [{}/{}] {:08x} - {}", hCPU->gpr[5], hCPU->gpr[7], hCPU->gpr[6], actorName);
 }
 
 // ksys::phys::RigidBodyFromShape::create to create a RigidBody from a shape
@@ -74,7 +96,7 @@ void CemuHooks::hook_UpdateActorList(PPCInterpreter_t* hCPU) {
 void CemuHooks::updateFrames() {
     for (uint32_t actorPtr : s_actorPtrs) {
         uint32_t actorPhysicsMtx = 0;
-        readMemoryBE(actorPtr + offsetof(ActorWiiU, physicsMtxPtr), &actorPhysicsMtx);
+        readMemory(actorPtr + offsetof(ActorWiiU, physicsMtxPtr), &actorPhysicsMtx);
         if (actorPhysicsMtx != 0) {
             // Matrix34 physicsMtx = {};
             // readMemoryBE(actorPhysicsMtx, &physicsMtx);
@@ -94,11 +116,11 @@ void CemuHooks::updateFrames() {
             Log::print("This actor has physics?!");
         }
 
-        Matrix34 mtx = {};
-        readMemoryBE(actorPtr + offsetof(ActorWiiU, mtx), &mtx);
-        float posX = mtx.pos_x;
-        float posY = mtx.pos_y;
-        float posZ = mtx.pos_z;
+        BEMatrix34 mtx = {};
+        readMemory(actorPtr + offsetof(ActorWiiU, mtx), &mtx);
+        float posX = mtx.pos_x.getLE();
+        float posY = mtx.pos_y.getLE();
+        float posZ = mtx.pos_z.getLE();
 
         float newPosX = posX + 20.0f;
         float newPosY = posY + 20.0f;
@@ -106,10 +128,9 @@ void CemuHooks::updateFrames() {
         mtx.pos_x = newPosX;
         mtx.pos_y = newPosY;
         mtx.pos_z = newPosZ;
-        Matrix34 backupMtx = mtx;
-        writeMemoryBE(actorPtr + offsetof(ActorWiiU, homeMtx), &mtx);
-        writeMemoryBE(actorPtr + offsetof(ActorWiiU, mtx), &mtx);
-        //Log::print("Updating actor list {:08x} currX={}, currY={}, currZ={} -> newX={}, newY={}, newZ={}", actorPtr, posX, posY, posZ, backupMtx.pos_x, backupMtx.pos_y, backupMtx.pos_z);
+        writeMemory(actorPtr + offsetof(ActorWiiU, homeMtx), &mtx);
+        writeMemory(actorPtr + offsetof(ActorWiiU, mtx), &mtx);
+        Log::print("Updating actor list {:08x} currX={}, currY={}, currZ={} -> newX={}, newY={}, newZ={}", actorPtr, posX, posY, posZ, mtx.pos_x.getLE(), mtx.pos_y.getLE(), mtx.pos_z.getLE());
     }
 }
 

@@ -5,7 +5,8 @@ moduleMatches = 0x6267BFD0
 
 
 spawnString:
-.string "Obj_Fruit_Apple_A"
+.string "Weapon_Sword_056"
+;.string "Weapon_Sword_056" ; this is the broken master sword, an item you can't normally obtain in the game
 .align 1
 .byte 0
 .align 40*4
@@ -54,7 +55,7 @@ lwz r3, CreatePlayerEquipActorMgr__sInstance@l(r3)
 ; - PouchItemType_Material = 0x7,
 ; - PouchItemType_Food = 0x8,
 ; - PouchItemType_KeyItem = 0x9,
-li r4, 0x08
+li r4, 0x00
 
 ; r5 is the actor name
 lis r5, spawnString@ha

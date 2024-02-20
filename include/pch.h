@@ -158,6 +158,21 @@ struct Matrix34 {
     float pos_z;
 };
 
+struct BEMatrix34 {
+    BEType<float> x_x;
+    BEType<float> y_x;
+    BEType<float> z_x;
+    BEType<float> pos_x;
+    BEType<float> x_y;
+    BEType<float> y_y;
+    BEType<float> z_y;
+    BEType<float> pos_y;
+    BEType<float> x_z;
+    BEType<float> y_z;
+    BEType<float> z_z;
+    BEType<float> pos_z;
+};
+
 struct Vec3 {
     float x;
     float y;
