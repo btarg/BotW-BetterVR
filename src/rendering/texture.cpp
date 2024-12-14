@@ -1,6 +1,143 @@
 #include "texture.h"
 #include "../utils/d3d12_utils.h"
 #include "instance.h"
+#include "utils/vulkan_utils.h"
+
+
+BaseVulkanTexture::~BaseVulkanTexture() {
+    if (m_vkImage != VK_NULL_HANDLE)
+        VRManager::instance().VK->GetDeviceDispatch()->DestroyImage(VRManager::instance().VK->GetDevice(), m_vkImage, nullptr);
+    if (m_vkMemory != VK_NULL_HANDLE)
+        VRManager::instance().VK->GetDeviceDispatch()->FreeMemory(VRManager::instance().VK->GetDevice(), m_vkMemory, nullptr);
+}
+
+void BaseVulkanTexture::vkPipelineBarrier(VkCommandBuffer cmdBuffer) {
+    return VulkanUtils::DebugPipelineBarrier(cmdBuffer);
+}
+
+void BaseVulkanTexture::vkTransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout) {
+    VulkanUtils::TransitionLayout(cmdBuffer, m_vkImage, m_vkCurrLayout, newLayout);
+    m_vkCurrLayout = newLayout;
+}
+
+void BaseVulkanTexture::vkCopyToImage(VkCommandBuffer cmdBuffer, VkImage dstImage) {
+    auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
+
+    const VkImageCopy region = {
+        .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .srcOffset = { 0, 0, 0 },
+        .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .dstOffset = { 0, 0, 0 },
+        .extent = {
+            .width = m_width,
+            .height = m_height,
+            .depth = 1
+        }
+    };
+
+    dispatch->CmdCopyImage(cmdBuffer, m_vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+}
+
+void BaseVulkanTexture::vkCopyFromImage(VkCommandBuffer cmdBuffer, VkImage srcImage) {
+    auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
+
+    const VkImageCopy region = {
+        .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .srcOffset = { 0, 0, 0 },
+        .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .dstOffset = { 0, 0, 0 },
+        .extent = {
+            .width = m_width,
+            .height = m_height,
+            .depth = 1
+        }
+    };
+
+    dispatch->CmdCopyImage(cmdBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+}
+
+VulkanTexture::VulkanTexture(uint32_t width, uint32_t height, VkFormat vkFormat, VkImageUsageFlags usage): BaseVulkanTexture(width, height, vkFormat) {
+    const auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
+
+    VkImageCreateInfo imageCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    imageCreateInfo.flags = 0;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageCreateInfo.format = vkFormat;
+    imageCreateInfo.extent = {
+        .width = m_width,
+        .height = m_height,
+        .depth = 1
+    };
+    imageCreateInfo.mipLevels = 1;
+    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageCreateInfo.usage = usage;
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageCreateInfo.queueFamilyIndexCount = 0;
+    imageCreateInfo.pQueueFamilyIndices = nullptr;
+    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    checkVkResult(dispatch->CreateImage(VRManager::instance().VK->GetDevice(), &imageCreateInfo, nullptr, &m_vkImage), "Failed to create image!");
+
+    VkMemoryRequirements memRequirements;
+    dispatch->GetImageMemoryRequirements(VRManager::instance().VK->GetDevice(), m_vkImage, &memRequirements);
+
+    uint32_t memoryTypeIndex = VRManager::instance().VK->FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = memoryTypeIndex;
+    checkVkResult(dispatch->AllocateMemory(VRManager::instance().VK->GetDevice(), &allocInfo, nullptr, &m_vkMemory), "Failed to allocate memory!");
+
+    checkVkResult(dispatch->BindImageMemory(VRManager::instance().VK->GetDevice(), m_vkImage, m_vkMemory, 0), "Failed to bind memory to image!");
+
+    VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    imageViewCreateInfo.image = m_vkImage;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.format = vkFormat;
+    imageViewCreateInfo.components = {
+        .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .a = VK_COMPONENT_SWIZZLE_IDENTITY
+    };
+    imageViewCreateInfo.subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1
+    };
+    checkVkResult(dispatch->CreateImageView(VRManager::instance().VK->GetDevice(), &imageViewCreateInfo, nullptr, &m_vkImageView), "Failed to create image view!");
+}
+
+VulkanTexture::~VulkanTexture() {
+    if (m_vkImageView != VK_NULL_HANDLE)
+        VRManager::instance().VK->GetDeviceDispatch()->DestroyImageView(VRManager::instance().VK->GetDevice(), m_vkImageView, nullptr);
+
+    if (m_vkImage != VK_NULL_HANDLE)
+        VRManager::instance().VK->GetDeviceDispatch()->DestroyImage(VRManager::instance().VK->GetDevice(), m_vkImage, nullptr);
+    if (m_vkMemory != VK_NULL_HANDLE)
+        VRManager::instance().VK->GetDeviceDispatch()->FreeMemory(VRManager::instance().VK->GetDevice(), m_vkMemory, nullptr);
+}
+
+VulkanFramebuffer::VulkanFramebuffer(uint32_t width, uint32_t height, VkFormat format, VkRenderPass renderPass): VulkanTexture(width, height, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
+    const auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
+
+    VkFramebufferCreateInfo framebufferInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+    framebufferInfo.renderPass = renderPass;
+    framebufferInfo.attachmentCount = 1;
+    framebufferInfo.pAttachments = &m_vkImageView;
+    framebufferInfo.width = width;
+    framebufferInfo.height = height;
+    framebufferInfo.layers = 1;
+    checkVkResult(dispatch->CreateFramebuffer(dispatch->Device, &framebufferInfo, nullptr, &m_framebuffer), "Failed to create framebuffer!");
+}
+
+VulkanFramebuffer::~VulkanFramebuffer() {
+    if (m_framebuffer != VK_NULL_HANDLE)
+        VRManager::instance().VK->GetDeviceDispatch()->DestroyFramebuffer(VRManager::instance().VK->GetDevice(), m_framebuffer, nullptr);
+}
 
 Texture::Texture(uint32_t width, uint32_t height, DXGI_FORMAT format): m_d3d12Format(format) {
     // clang-format off
@@ -17,7 +154,7 @@ Texture::Texture(uint32_t width, uint32_t height, DXGI_FORMAT format): m_d3d12Fo
             .Quality = 0
         },
         .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        .Flags = D3D12Utils::IsDepthFormat(format) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE
+        .Flags = D3D12Utils::IsDepthFormat(format) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
     };
     // clang-format on
 
@@ -72,7 +209,7 @@ bool Texture::CopyFromSharedTexture(ID3D12GraphicsCommandList* cmdList, SharedTe
     return false;
 }
 
-SharedTexture::SharedTexture(uint32_t width, uint32_t height, VkFormat vkFormat, DXGI_FORMAT d3d12Format): Texture(width, height, d3d12Format) {
+SharedTexture::SharedTexture(uint32_t width, uint32_t height, VkFormat vkFormat, DXGI_FORMAT d3d12Format): Texture(width, height, d3d12Format), BaseVulkanTexture(width, height, vkFormat) {
     const auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
 
     // create image
@@ -85,8 +222,8 @@ SharedTexture::SharedTexture(uint32_t width, uint32_t height, VkFormat vkFormat,
     imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
     imageCreateInfo.format = vkFormat;
     imageCreateInfo.extent = {
-        .width = width,
-        .height = height,
+        .width = m_width,
+        .height = m_height,
         .depth = 1
     };
     imageCreateInfo.mipLevels = 1;
@@ -97,7 +234,7 @@ SharedTexture::SharedTexture(uint32_t width, uint32_t height, VkFormat vkFormat,
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageCreateInfo.queueFamilyIndexCount = 0;
     imageCreateInfo.pQueueFamilyIndices = nullptr;
-    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageCreateInfo.initialLayout = m_vkCurrLayout;
     checkVkResult(dispatch->CreateImage(VRManager::instance().VK->GetDevice(), &imageCreateInfo, nullptr, &m_vkImage), "Failed to create image for shared texture!");
 
     // get memory requirements
@@ -150,55 +287,10 @@ SharedTexture::SharedTexture(uint32_t width, uint32_t height, VkFormat vkFormat,
 SharedTexture::~SharedTexture() {
     if (m_vkSemaphore != VK_NULL_HANDLE)
         VRManager::instance().VK->GetDeviceDispatch()->DestroySemaphore(VRManager::instance().VK->GetDevice(), m_vkSemaphore, nullptr);
-    if (m_vkImage != VK_NULL_HANDLE)
-        VRManager::instance().VK->GetDeviceDispatch()->DestroyImage(VRManager::instance().VK->GetDevice(), m_vkImage, nullptr);
-    if (m_vkMemory != VK_NULL_HANDLE)
-        VRManager::instance().VK->GetDeviceDispatch()->FreeMemory(VRManager::instance().VK->GetDevice(), m_vkMemory, nullptr);
-}
-
-
-void SharedTexture::vkTransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout layout) {
-    VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-    barrier.oldLayout = m_currLayout;
-    barrier.newLayout = layout;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = m_vkImage;
-    barrier.subresourceRange = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .baseMipLevel = 0,
-        .levelCount = 1,
-        .baseArrayLayer = 0,
-        .layerCount = 1
-    };
-    VRManager::instance().VK->GetDeviceDispatch()->CmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-    m_currLayout = layout;
 }
 
 void SharedTexture::CopyFromVkImage(VkCommandBuffer cmdBuffer, VkImage srcImage) {
-    VkMemoryBarrier2KHR memoryBarrier = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2_KHR,
-        .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT_KHR,
-        .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT_KHR | VK_ACCESS_2_MEMORY_WRITE_BIT_KHR,
-        .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT_KHR,
-        .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT_KHR | VK_ACCESS_2_MEMORY_WRITE_BIT_KHR,
-    };
-
-    VkDependencyInfoKHR dependencyInfo = {
-        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
-        .pNext = nullptr,
-        .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
-        .memoryBarrierCount = 1,
-        .pMemoryBarriers = &memoryBarrier,
-        .bufferMemoryBarrierCount = 0,
-        .pBufferMemoryBarriers = nullptr,
-        .imageMemoryBarrierCount = 0,
-        .pImageMemoryBarriers = nullptr,
-    };
-
-    VRManager::instance().VK->GetDeviceDispatch()->CmdPipelineBarrier2KHR(cmdBuffer, &dependencyInfo);
+    this->vkPipelineBarrier(cmdBuffer);
 
     VkImageCopy copyRegion = {
         .srcSubresource = { (VkImageAspectFlags)(D3D12Utils::IsDepthFormat(this->d3d12GetTexture()->GetDesc().Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT), 0, 0, 1 },
@@ -210,5 +302,5 @@ void SharedTexture::CopyFromVkImage(VkCommandBuffer cmdBuffer, VkImage srcImage)
 
     VRManager::instance().VK->GetDeviceDispatch()->CmdCopyImage(cmdBuffer, srcImage, VK_IMAGE_LAYOUT_GENERAL, this->m_vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
-    VRManager::instance().VK->GetDeviceDispatch()->CmdPipelineBarrier2KHR(cmdBuffer, &dependencyInfo);
+    this->vkPipelineBarrier(cmdBuffer);
 }

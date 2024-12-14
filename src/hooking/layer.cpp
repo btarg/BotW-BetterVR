@@ -115,7 +115,8 @@ const std::vector<std::string> additionalDeviceExtensions = {
     VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME,
     VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
     VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
-    VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME
+    VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME,
+    // VK_KHR_SURFACE_EXTENSION_NAME,
 };
 
 VkResult VRLayer::VkInstanceOverrides::CreateDevice(const vkroots::VkInstanceDispatch* pDispatch, VkPhysicalDevice gpu, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice) {

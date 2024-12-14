@@ -31,7 +31,8 @@ set(VCPKG_HOST_TRIPLET x64-windows-static-md)
 find_path(VULKAN_HEADERS_INCLUDE_DIRS "vk_video/vulkan_video_codec_h264std.h")
 find_package(OpenXR CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-#find_package(Eigen3 CONFIG REQUIRED)
+find_package(JsonCpp CONFIG REQUIRED) # Required for OpenXR loader to compile
+find_package(imgui CONFIG REQUIRED)
 
 
 # Add DLL target
@@ -47,6 +48,7 @@ target_sources(BetterVR_Layer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/instance.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shader.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/d3d12_utils.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/vulkan_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/logger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/logger.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/framebuffer.cpp
@@ -56,6 +58,8 @@ target_sources(BetterVR_Layer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/cemu_hooks.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/camera.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/settings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/hands.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/controls.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer.cpp
@@ -68,15 +72,19 @@ target_sources(BetterVR_Layer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/texture.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/vulkan.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/vulkan.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/hands.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/controls.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/vulkan_imgui.cpp
 )
 
-# Add dependencies for DLL
+# Add vcpkg dependencies for DLL
 target_link_libraries(BetterVR_Layer PRIVATE OpenXR::headers OpenXR::openxr_loader)
 target_include_directories(BetterVR_Layer SYSTEM PRIVATE ${VULKAN_HEADERS_INCLUDE_DIRS})
 target_link_libraries(BetterVR_Layer PRIVATE glm::glm)
-#target_link_libraries(BetterVR_Layer PRIVATE Eigen3::Eigen)
+target_link_libraries(BetterVR_Layer PRIVATE imgui::imgui)
+
+# Add manual dependencies for DLL
+target_compile_definitions(BetterVR_Layer PRIVATE IMGUI_IMPL_VULKAN_NO_PROTOTYPES)
+target_sources(BetterVR_Layer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui_impl_vulkan.cpp)
+target_include_directories(BetterVR_Layer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies)
 
 # Set install rules
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/BetterVR_Layer.json" "${CMAKE_CURRENT_SOURCE_DIR}/resources/Launch_BetterVR.bat" DESTINATION "${CMAKE_INSTALL_PREFIX}")

@@ -19,7 +19,6 @@ public:
     class Layer3D {
     public:
         Layer3D();
-
         ~Layer3D();
 
         void InitTextures(VkExtent2D extent);
@@ -40,8 +39,8 @@ public:
         void PrepareRendering(OpenXR::EyeSide side);
         void UpdatePredictedTime(OpenXR::EyeSide side, XrTime time) { m_predictedTimes[side] = time; };
         void UpdatePoses(OpenXR::EyeSide side);
-        [[nodiscard]] class SharedTexture* CopyColorToLayer(VkCommandBuffer copyCmdBuffer, VkImage image);
-        [[nodiscard]] class SharedTexture* CopyDepthToLayer(VkCommandBuffer copyCmdBuffer, VkImage image);
+        class SharedTexture* CopyColorToLayer(VkCommandBuffer copyCmdBuffer, VkImage image);
+        class SharedTexture* CopyDepthToLayer(VkCommandBuffer copyCmdBuffer, VkImage image);
         void StartRendering();
         void Render(OpenXR::EyeSide side);
         const std::array<XrCompositionLayerProjectionView, 2>& FinishRendering();
@@ -49,6 +48,9 @@ public:
         [[nodiscard]] Status3D GetStatus() const { return m_status; }
         [[nodiscard]] XrFovf GetFOV(OpenXR::EyeSide side) const { return m_currViews[side].fov; }
         [[nodiscard]] XrPosef GetPose(OpenXR::EyeSide side) const { return m_currViews[side].pose; }
+        [[nodiscord]] float GetAspectRatio(OpenXR::EyeSide side) const {
+            return m_swapchains[side]->GetWidth() / (float)m_swapchains[side]->GetHeight();
+        }
 
     private:
         std::array<std::unique_ptr<Swapchain<DXGI_FORMAT_R8G8B8A8_UNORM_SRGB>>, 2> m_swapchains;

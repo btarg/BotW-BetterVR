@@ -127,7 +127,7 @@ namespace vkroots {
       return VK_ERROR_INITIALIZATION_FAILED;
     *pOutFuncs = VkInstanceProcAddrFuncs{ layerInfo->u.pLayerInfo->pfnNextGetInstanceProcAddr, layerInfo->u.pLayerInfo->pfnNextGetPhysicalDeviceProcAddr };
     // Josh:
-    // It really sucks that we have to advance this ourselves given the const situation here... 
+    // It really sucks that we have to advance this ourselves given the const situation here...
     VkLayerInstanceCreateInfo* layerInfoMutable = const_cast<VkLayerInstanceCreateInfo *>(layerInfo);
     layerInfoMutable->u.pLayerInfo = layerInfoMutable->u.pLayerInfo->pNext;
     return VK_SUCCESS;
@@ -143,7 +143,7 @@ namespace vkroots {
       return VK_ERROR_INITIALIZATION_FAILED;
     *pOutAddr = layerInfo->u.pLayerInfo->pfnNextGetDeviceProcAddr;
     // Josh:
-    // It really sucks that we have to advance this ourselves given the const situation here... 
+    // It really sucks that we have to advance this ourselves given the const situation here...
     VkLayerDeviceCreateInfo* layerInfoMutable = const_cast<VkLayerDeviceCreateInfo *>(layerInfo);
     layerInfoMutable->u.pLayerInfo = layerInfoMutable->u.pLayerInfo->pNext;
     return VK_SUCCESS;
@@ -1065,8 +1065,8 @@ namespace vkroots {
     PFN_vkAcquireNextImageKHR AcquireNextImageKHR;
     PFN_vkAcquirePerformanceConfigurationINTEL AcquirePerformanceConfigurationINTEL;
     PFN_vkAcquireProfilingLockKHR AcquireProfilingLockKHR;
-    PFN_vkAllocateCommandBuffers AllocateCommandBuffers;
     PFN_vkAllocateDescriptorSets AllocateDescriptorSets;
+    PFN_vkAllocateCommandBuffers AllocateCommandBuffers;
     PFN_vkAllocateMemory AllocateMemory;
     PFN_vkBeginCommandBuffer BeginCommandBuffer;
     PFN_vkBindAccelerationStructureMemoryNV BindAccelerationStructureMemoryNV;
@@ -5394,7 +5394,7 @@ namespace vkroots {
     // name_str += name;
     // name_str += "\n";
     // OutputDebugStringA(name_str.c_str());
-      
+
     const VkInstanceDispatch* dispatch = tables::LookupInstanceDispatch(instance);
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
     constexpr bool HasCreateAndroidSurfaceKHR = requires(const InstanceOverrides& t) { &InstanceOverrides::CreateAndroidSurfaceKHR; };
@@ -5847,7 +5847,7 @@ namespace vkroots {
     // name_str += name;
     // name_str += "\n";
     // OutputDebugStringA(name_str.c_str());
-    
+
     const VkPhysicalDeviceDispatch* dispatch = tables::LookupPhysicalDeviceDispatch(instance);
     constexpr bool HasAcquireDrmDisplayEXT = requires(const PhysicalDeviceOverrides& t) { &PhysicalDeviceOverrides::AcquireDrmDisplayEXT; };
     if constexpr (HasAcquireDrmDisplayEXT) {
@@ -6100,7 +6100,7 @@ namespace vkroots {
     // name_str += name;
     // name_str += "\n";
     // OutputDebugStringA(name_str.c_str());
-    
+
     const VkDeviceDispatch* dispatch = tables::LookupDeviceDispatch(device);
 #ifdef VK_USE_PLATFORM_WIN32_KHR
     constexpr bool HasAcquireFullScreenExclusiveModeEXT = requires(const DeviceOverrides& t) { &DeviceOverrides::AcquireFullScreenExclusiveModeEXT; };

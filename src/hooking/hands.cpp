@@ -105,6 +105,7 @@ void CemuHooks::updateFrames() {
 
         BEMatrix34 mtx = {};
         readMemory(actorPtr + offsetof(ActorWiiU, mtx), &mtx);
+
         float posX = mtx.pos_x.getLE();
         float posY = mtx.pos_y.getLE();
         float posZ = mtx.pos_z.getLE();
@@ -117,7 +118,7 @@ void CemuHooks::updateFrames() {
         mtx.pos_z = newPosZ;
         writeMemory(actorPtr + offsetof(ActorWiiU, homeMtx), &mtx);
         writeMemory(actorPtr + offsetof(ActorWiiU, mtx), &mtx);
-        Log::print("Updating actor list {:08x} currX={}, currY={}, currZ={} -> newX={}, newY={}, newZ={}", actorPtr, posX, posY, posZ, mtx.pos_x.getLE(), mtx.pos_y.getLE(), mtx.pos_z.getLE());
+        Log::print("Updating actor list {:08x} currX={} (address = {:08x}), currY={} (address = {:08x}), currZ={} (address = {:08x}) -> newX={}, newY={}, newZ={}", actorPtr, posX, actorPtr + offsetof(ActorWiiU, mtx.pos_x), posY, actorPtr + offsetof(ActorWiiU, mtx.pos_y), posZ, actorPtr + offsetof(ActorWiiU, mtx.pos_z), newPosX, newPosY, newPosZ);
     }
 }
 

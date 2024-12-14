@@ -4,6 +4,7 @@ name = Better VR
 path = "The Legend of Zelda: Breath of the Wild/Better VR"
 description = Used to enable and change VR settings for BetterVR.||Made by Crementif, Postposterous, etra [insert more random people that helped].
 version = 7
+default = 1
 
 [Default]
 $cameraMode:int = 0

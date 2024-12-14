@@ -12,7 +12,9 @@
     </sourceRoots>
     <excludeRoots>
       <file path="$PROJECT_DIR$/Cemu" />
+      <file path="$PROJECT_DIR$/MetaXRSimulator" />
       <file path="$PROJECT_DIR$/ReverseEngineering" />
+      <file path="$PROJECT_DIR$/dependencies" />
     </excludeRoots>
   </component>
 </project>

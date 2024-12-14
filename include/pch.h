@@ -37,6 +37,9 @@ using Microsoft::WRL::ComPtr;
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 
+#include <imgui.h>
+#include <imgui_impl_vulkan.h>
+
 template <typename T1, typename T2>
 constexpr bool HAS_FLAG(T1 flags, T2 test_flag) { return (flags & (T1)test_flag) == (T1)test_flag; }
 
