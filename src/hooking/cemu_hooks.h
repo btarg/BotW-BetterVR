@@ -36,6 +36,7 @@ public:
 
     static data_VRSettingsIn GetSettings();
     static uint32_t GetFramesSinceLastCameraUpdate() { return s_framesSinceLastCameraUpdate.load(); }
+    static uint64_t GetMemoryBaseAddress() { return s_memoryBaseAddress; }
 
 private:
     HMODULE m_cemuHandle;
@@ -61,6 +62,7 @@ private:
 
     static void updateFrames();
 
+public:
     template <typename T>
     static void writeMemoryBE(uint64_t offset, T* valuePtr) {
         *valuePtr = swapEndianness(*valuePtr);

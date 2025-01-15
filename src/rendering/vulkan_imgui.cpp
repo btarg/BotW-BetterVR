@@ -508,6 +508,18 @@ void RND_Vulkan::ImGuiOverlay::BeginFrame() {
                             value.expanded = !value.expanded;
                         }
                     }
+                    else if constexpr (std::is_same_v<T, MemoryRange>) {
+                        if (ImGui::Button(std::format("{} '{}' memory at {:08X}", value.expanded ? "Close" : "Open", value.value_name, value.value_address).c_str())) {
+                            value.expanded = !value.expanded;
+                        }
+                        if (value.expanded) {
+                            auto& mem_edit = std::get<MemoryRange>(value.value).editor;
+                            ImU8* data = (ImU8*)std::get<MemoryRange>(value.value).start;
+                            size_t size = std::get<MemoryRange>(value.value).end - std::get<MemoryRange>(value.value).start;
+                            std::string windowName = std::format("{} at {:08X} with size of {:08X}", value.value_name, value.value_address, size);
+                            mem_edit->DrawWindow(windowName.c_str(), (ImU8*)CemuHooks::GetMemoryBaseAddress()+(size_t)data, size, (size_t)data);
+                        }
+                    }
                     else if constexpr (std::is_same_v<T, std::string>) {
                         std::string val = std::get<std::string>(value.value);
                         ImGui::Text( val.c_str());
@@ -528,6 +540,9 @@ void RND_Vulkan::ImGuiOverlay::BeginFrame() {
 
 void RND_Vulkan::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio) {
     m_mainFramebuffer->vkPipelineBarrier(cb);
+    m_mainFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
+    m_mainFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 0.0f });
+    m_mainFramebuffer->vkPipelineBarrier(cb);
     m_mainFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     m_mainFramebuffer->vkCopyFromImage(cb, srcImage);
     m_mainFramebuffer->vkPipelineBarrier(cb);
@@ -537,6 +552,9 @@ void RND_Vulkan::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkIma
 }
 
 void RND_Vulkan::ImGuiOverlay::DrawHUDLayerAsBackground(VkCommandBuffer cb, VkImage srcImage) {
+    m_hudFramebuffer->vkPipelineBarrier(cb);
+    m_hudFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
+    m_hudFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 0.0f });
     m_hudFramebuffer->vkPipelineBarrier(cb);
     m_hudFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     m_hudFramebuffer->vkCopyFromImage(cb, srcImage);
@@ -741,7 +759,7 @@ void RND_Vulkan::ImGuiOverlay::AddOrUpdateEntity(uint32_t actorId, const std::st
     if (valueIt == entityIt->second.values.end()) {
         entityIt->second.values.emplace_back(valueName, false, false, address, std::move(value));
     }
-    else if (!valueIt->frozen) {
+    else if (!valueIt->frozen && !std::holds_alternative<MemoryRange>(value)) {
         valueIt->value = std::move(value);
     }
 }
@@ -768,6 +786,14 @@ void RND_Vulkan::ImGuiOverlay::SetAABB(uint32_t actorId, glm::fvec3 min, glm::fv
 
 void RND_Vulkan::ImGuiOverlay::RemoveEntity(uint32_t actorId) {
     m_entities.erase(actorId);
+}
+
+void RND_Vulkan::ImGuiOverlay::RemoveEntityValue(uint32_t actorId, const std::string& valueName) {
+    if (const auto it = m_entities.find(actorId); it != m_entities.end()) {
+        it->second.values.erase(std::ranges::remove_if(it->second.values, [&](const EntityValue& val) {
+            return val.value_name == valueName;
+        }).begin(), it->second.values.end());
+    }
 }
 
 void RND_Vulkan::ImGuiOverlay::SetInGameFrustum(OpenXR::EyeSide side, glm::fvec3 position, glm::fquat rotation, XrFovf fov) {

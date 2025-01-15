@@ -2,7 +2,15 @@
 #include "openxr.h"
 #include "texture.h"
 
-using ValueVariant = std::variant<BEType<uint32_t>, BEType<int32_t>, BEType<float>, BEType<uint8_t>, BEVec3, BEMatrix34, std::string>;
+#include <imgui_memory_editor.h>
+
+struct MemoryRange {
+    uint32_t start;
+    uint32_t end;
+    std::unique_ptr<MemoryEditor> editor;
+};
+
+using ValueVariant = std::variant<BEType<uint32_t>, BEType<int32_t>, BEType<float>, BEType<uint8_t>, BEVec3, BEMatrix34, MemoryRange, std::string>;
 
 struct EntityValue {
     std::string value_name;
@@ -50,14 +58,14 @@ public:
         void SetRotation(uint32_t actorId, const glm::fquat rotation);
         void SetAABB(uint32_t actorId, glm::fvec3 min, glm::fvec3 max);
         void RemoveEntity(uint32_t actorId);
+        void RemoveEntityValue(uint32_t actorId, const std::string& valueName);
 
+        bool ShouldBlockGameInput() const { return ImGui::GetIO().WantCaptureKeyboard; }
 
         void SetInGameFrustum(OpenXR::EyeSide side, glm::fvec3 position, glm::fquat rotation, XrFovf fov);
         void SetVRFrustum(OpenXR::EyeSide side, glm::fvec3 from, XrPosef pose, XrFovf fov);
         std::array<std::tuple<glm::fvec3, glm::fquat, XrFovf>, 2> m_inGameFrustums = {};
         std::array<std::tuple<glm::fvec3, XrPosef, XrFovf>, 2> m_vrFrustums = {};
-
-
 
         void BeginFrame();
         void Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio);

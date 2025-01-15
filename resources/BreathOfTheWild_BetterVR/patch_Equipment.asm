@@ -5,7 +5,7 @@ moduleMatches = 0x6267BFD0
 
 
 spawnString:
-.string "Weapon_Sword_056"
+.string "Weapon_Sword_043"
 ;.string "Weapon_Sword_056" ; this is the broken master sword, an item you can't normally obtain in the game
 .align 1
 .byte 0

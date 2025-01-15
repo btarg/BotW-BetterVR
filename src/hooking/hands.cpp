@@ -5,7 +5,35 @@
 
 #define PADDED_BYTES(from, up) uint8_t byte_##from##[ ## (up-from+0x04) ## ]
 
+
 #pragma pack(push, 1)
+namespace sead {
+    struct SafeString {
+        BEType<uint32_t> c_str;
+        BEType<uint32_t> vtable;
+    };
+
+    struct PtrArrayImpl {
+        BEType<uint32_t> size;
+        BEType<uint32_t> capacity;
+        BEType<uint32_t> data;
+    };
+};
+
+struct ActorPhysics {
+    BEType<uint32_t> __vftable;
+    sead::SafeString actorName;
+    BEType<uint32_t> *physicsParamSet;
+    BEType<uint32_t> flags;
+    BEType<uint32_t> dword14;
+    BEType<uint32_t> dword18;
+    BEType<float> scale;
+    BEType<uint32_t> gsysModel;
+    sead::PtrArrayImpl rigidBodies;
+    sead::PtrArrayImpl collisionInfo;
+    sead::PtrArrayImpl contactInfo;
+};
+
 struct ActorWiiU {
     uint32_t vtable;
     BEType<uint32_t> baseProcPtr;
@@ -43,8 +71,12 @@ struct ActorWiiU {
     BEType<uint32_t> flags2;
     BEType<uint32_t> flags2Copy;
     BEType<uint32_t> flags;
-    BEType<uint32_t> flags3;
-    PADDED_BYTES(0x374, 0x404);
+    BEType<uint32_t> flags3; // 0x370 or 880. However in IDA there's a 0xF4 offset
+
+    PADDED_BYTES(0x374, 0x39C);
+    BEType<uint32_t> actorPhysicsPtr; // 0x3A0
+    PADDED_BYTES(0x3A4, 0x404);
+
     BEType<uint32_t> hashId;
     PADDED_BYTES(0x40C, 0x430);
     uint8_t unk_434;
@@ -52,9 +84,9 @@ struct ActorWiiU {
     uint8_t opacityOrSomethingEnabled;
     uint8_t unk_437;
     PADDED_BYTES(0x438, 0x440);
-    BEType<uint32_t> pfloat444;
-    BEType<uint32_t> chemicals;
-    BEType<uint32_t> reactions;
+    BEType<uint32_t> actorX6A0Ptr;
+    BEType<uint32_t> chemicalsPtr;
+    BEType<uint32_t> reactionsPtr;
     PADDED_BYTES(0x450, 0x48C);
     BEType<float> lodDrawDistanceMultiplier;
     PADDED_BYTES(0x494, 0x538);
@@ -208,6 +240,13 @@ void CemuHooks::updateFrames() {
                 overlay->AddOrUpdateEntity(actorId, actorName, name, address, getMemory<T>(address), true);
             };
 
+            auto addMemoryRange = [&](const std::string& name, uint32_t addressPtr, uint32_t size) -> void {
+                uint32_t address = 0;
+                if (readMemoryBE(addressPtr, &address); address != 0) {
+                    overlay->AddOrUpdateEntity(actorId, actorName, name, address, MemoryRange{ address, address + size, std::make_unique<MemoryEditor>() }, true);
+                }
+            };
+
             BEMatrix34 mtx = getMemory<BEMatrix34>(actorPtr + offsetof(ActorWiiU, mtx));
             overlay->AddOrUpdateEntity(actorId, actorName, "mtx", actorPtr + offsetof(ActorWiiU, mtx), mtx);
             if (playerPos.pos_x.getLE() != 0.0f) {
@@ -221,33 +260,134 @@ void CemuHooks::updateFrames() {
                 overlay->SetAABB(actorId, aabbMin.getLE(), aabbMax.getLE());
             }
 
-            uint32_t physicsMtxPtr = 0;
-            if (readMemoryBE(actorPtr + offsetof(ActorWiiU, physicsMtxPtr), &physicsMtxPtr); physicsMtxPtr != 0) {
-                overlay->AddOrUpdateEntity(actorId, actorName, "physicsMtx", physicsMtxPtr, getMemory<BEMatrix34>(physicsMtxPtr));
-            }
+            // uint32_t physicsMtxPtr = 0;
+            // if (readMemoryBE(actorPtr + offsetof(ActorWiiU, physicsMtxPtr), &physicsMtxPtr); physicsMtxPtr != 0) {
+            //     overlay->AddOrUpdateEntity(actorId, actorName, "physicsMtx", physicsMtxPtr, getMemory<BEMatrix34>(physicsMtxPtr));
+            // }
             addField.operator()<BEVec3>("velocity", offsetof(ActorWiiU, velocity));
             addField.operator()<BEVec3>("angularVelocity", offsetof(ActorWiiU, angularVelocity));
             addField.operator()<BEVec3>("scale", offsetof(ActorWiiU, scale));
-            addField.operator()<BEVec3>("previousPos", offsetof(ActorWiiU, previousPos));
-            addField.operator()<BEVec3>("previousPos2", offsetof(ActorWiiU, previousPos2));
-            addField.operator()<float>("dispDistSq", offsetof(ActorWiiU, dispDistSq));
-            addField.operator()<float>("deleteDistSq", offsetof(ActorWiiU, deleteDistSq));
-            addField.operator()<float>("loadDistP10", offsetof(ActorWiiU, loadDistP10));
-            addField.operator()<uint32_t>("modelBindInfoPtr", offsetof(ActorWiiU, modelBindInfoPtr));
-            addField.operator()<uint32_t>("gsysModelPtr", offsetof(ActorWiiU, gsysModelPtr));
-            addField.operator()<float>("startModelOpacity", offsetof(ActorWiiU, startModelOpacity));
-            addField.operator()<float>("modelOpacity", offsetof(ActorWiiU, modelOpacity));
-            addField.operator()<uint8_t>("opacityOrSomethingEnabled", offsetof(ActorWiiU, opacityOrSomethingEnabled));
+            // addField.operator()<BEVec3>("previousPos", offsetof(ActorWiiU, previousPos));
+            // addField.operator()<BEVec3>("previousPos2", offsetof(ActorWiiU, previousPos2));
+            // addField.operator()<float>("dispDistSq", offsetof(ActorWiiU, dispDistSq));
+            // addField.operator()<float>("deleteDistSq", offsetof(ActorWiiU, deleteDistSq));
+            // addField.operator()<float>("loadDistP10", offsetof(ActorWiiU, loadDistP10));
+            // addField.operator()<uint32_t>("modelBindInfoPtr", offsetof(ActorWiiU, modelBindInfoPtr));
+            // addField.operator()<uint32_t>("gsysModelPtr", offsetof(ActorWiiU, gsysModelPtr));
+            // addField.operator()<float>("startModelOpacity", offsetof(ActorWiiU, startModelOpacity));
+            // addField.operator()<float>("modelOpacity", offsetof(ActorWiiU, modelOpacity));
+            // addField.operator()<uint8_t>("opacityOrSomethingEnabled", offsetof(ActorWiiU, opacityOrSomethingEnabled));
             addField.operator()<BEVec3>("aabb_min", offsetof(ActorWiiU, aabb.minX));
             addField.operator()<BEVec3>("aabb_max", offsetof(ActorWiiU, aabb.maxX));
             addField.operator()<uint32_t>("flags2", offsetof(ActorWiiU, flags2));
             addField.operator()<uint32_t>("flags2Copy", offsetof(ActorWiiU, flags2Copy));
             addField.operator()<uint32_t>("flags", offsetof(ActorWiiU, flags));
             addField.operator()<uint32_t>("flags3", offsetof(ActorWiiU, flags3));
+
+            // uint32_t actorPhysicsPtr = 0;
+            // if (readMemoryBE(actorPtr + offsetof(ActorWiiU, actorPhysicsPtr), &actorPhysicsPtr); actorPhysicsPtr != 0) {
+            //     float scale = 0.0f;
+            //     readMemoryBE(actorPhysicsPtr + offsetof(ActorPhysics, scale), &scale);
+            //     overlay->AddOrUpdateEntity(actorId, actorName, "scale", actorPhysicsPtr + offsetof(ActorPhysics, scale), BEType<float>(scale), true);
+            //
+            //     uint32_t rigidBodySize = 0;
+            //     readMemoryBE(actorPhysicsPtr + offsetof(ActorPhysics, rigidBodies.size), &rigidBodySize);
+            //     overlay->AddOrUpdateEntity(actorId, actorName, "rigidBodies.size", actorPhysicsPtr + offsetof(ActorPhysics, rigidBodies.size), BEType<uint32_t>(rigidBodySize), true);
+            //
+            //     uint32_t contactInfoSize = 0;
+            //     readMemoryBE(actorPhysicsPtr + offsetof(ActorPhysics, contactInfo.size), &contactInfoSize);
+            //     overlay->AddOrUpdateEntity(actorId, actorName, "contactInfo.size", actorPhysicsPtr + offsetof(ActorPhysics, contactInfo.size), BEType<uint32_t>(contactInfoSize), true);
+            //
+            //     uint32_t collisionInfoSize = 0;
+            //     readMemoryBE(actorPhysicsPtr + offsetof(ActorPhysics, collisionInfo.size), &collisionInfoSize);
+            //     overlay->AddOrUpdateEntity(actorId, actorName, "collisionInfo.size", actorPhysicsPtr + offsetof(ActorPhysics, collisionInfo.size), BEType<uint32_t>(collisionInfoSize), true);
+            //
+            //     uint32_t flags = 0;
+            //     readMemoryBE(actorPhysicsPtr + offsetof(ActorPhysics, flags), &flags);
+            //     overlay->AddOrUpdateEntity(actorId, actorName, "physicsFlags", actorPhysicsPtr + offsetof(ActorPhysics, flags), BEType<uint32_t>(flags), true);
+            //
+            //     auto AddFlagFromUint32 = [&](const std::string& name, uint32_t flag) {
+            //         overlay->AddOrUpdateEntity(actorId, actorName, name, actorPhysicsPtr + offsetof(ActorPhysics, flags), BEType<uint8_t>((flags >> flag) & 0x1), false);
+            //     };
+            //
+            //     AddFlagFromUint32("physicsFlag0", 0);
+            //     AddFlagFromUint32("physicsFlag1", 1);
+            //     AddFlagFromUint32("physicsFlag2", 2);
+            //     AddFlagFromUint32("physicsFlag3", 3);
+            //     AddFlagFromUint32("physicsFlag4", 4);
+            //     AddFlagFromUint32("physicsFlag5", 5);
+            //     AddFlagFromUint32("physicsFlag6", 6);
+            //     AddFlagFromUint32("physicsFlag7", 7);
+            //     AddFlagFromUint32("physicsFlag8", 8);
+            //     AddFlagFromUint32("physicsFlag9", 9);
+            //     AddFlagFromUint32("physicsFlag10", 10);
+            //     AddFlagFromUint32("physicsFlag11", 11);
+            //     AddFlagFromUint32("physicsFlag12", 12);
+            //     AddFlagFromUint32("physicsFlag13", 13);
+            //     AddFlagFromUint32("physicsFlag14", 14);
+            //     AddFlagFromUint32("physicsFlag15", 15);
+            //     AddFlagFromUint32("physicsFlag16", 16);
+            //     AddFlagFromUint32("physicsFlag17", 17);
+            //     AddFlagFromUint32("physicsFlag18", 18);
+            //     AddFlagFromUint32("physicsFlag19", 19);
+            //     AddFlagFromUint32("physicsFlag20", 20);
+            //     AddFlagFromUint32("physicsFlag21", 21);
+            //     AddFlagFromUint32("physicsFlag22", 22);
+            //     AddFlagFromUint32("physicsFlag23", 23);
+            //     AddFlagFromUint32("physicsFlag24", 24);
+            //     AddFlagFromUint32("physicsFlag25", 25);
+            //     AddFlagFromUint32("physicsFlag26", 26);
+            //     AddFlagFromUint32("physicsFlag27", 27);
+            //     AddFlagFromUint32("physicsFlag28", 28);
+            //     AddFlagFromUint32("physicsFlag29", 29);
+            //     AddFlagFromUint32("physicsFlag30", 30);
+            //     AddFlagFromUint32("physicsFlag31", 31);
+            // }
+
+
+            {
+                // show each bit of flags2
+                // uint32_t flags2 = getMemory<int32_t>(actorPtr + offsetof(ActorWiiU, flags2)).getLE();
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_0", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>(flags2 & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_1", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 1) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_2", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 2) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_3", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 3) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_4", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 4) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_5", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 5) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_6", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 6) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_7", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 7) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_8", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 8) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_9", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 9) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_10", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 10) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_11", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 11) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_12", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 12) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_13", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 13) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_14", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 14) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_15", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 15) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_16", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 16) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_17", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 17) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_18", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 18) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_19", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 19) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_20", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 20) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_21", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 21) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_22", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 22) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_23", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 23) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_24", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 24) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_25", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 25) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_26", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 26) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_27", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 27) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_28", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 28) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_29", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 29) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_30", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 30) & 0x1), false);
+                // overlay->AddOrUpdateEntity(actorId, actorName, "flags2_31", actorPtr + offsetof(ActorWiiU, flags2), BEType<uint8_t>((flags2 >> 31) & 0x1), false);
+            }
+
             addField.operator()<uint32_t>("hashId", offsetof(ActorWiiU, hashId));
-            addField.operator()<uint32_t>("chemicals", offsetof(ActorWiiU, chemicals));
-            addField.operator()<uint32_t>("reactions", offsetof(ActorWiiU, reactions));
-            addField.operator()<float>("lodDrawDistanceMultiplier", offsetof(ActorWiiU, lodDrawDistanceMultiplier));
+            addMemoryRange("physics", actorPtr + offsetof(ActorWiiU, actorPhysicsPtr), 0xE0);
+            addMemoryRange("actorX6A0", actorPtr + offsetof(ActorWiiU, actorX6A0Ptr), 0x6C);
+            addMemoryRange("chemicals", actorPtr + offsetof(ActorWiiU, chemicalsPtr), 0x64);
+            addMemoryRange("reactions", actorPtr + offsetof(ActorWiiU, reactionsPtr), 0x0C);
+            // addField.operator()<float>("lodDrawDistanceMultiplier", offsetof(ActorWiiU, lodDrawDistanceMultiplier));
         }
 
         // other systems might've added memory to the overlay, so hence this is a separate loop
@@ -316,6 +456,7 @@ void vrhook_changeWeaponMtx(OpenXR::EyeSide side, BEMatrix34& toBeAdjustedMtx, B
     // Next, calculate the rotation
     glm::fquat rotatedControllerQuat = glm::normalize(g_lookAtQuat * controllerQuat);
     rotatedControllerQuat = glm::rotate(rotatedControllerQuat, glm::radians(180.0f), glm::fvec3(1.0f, 0.0f, 0.0f));
+    rotatedControllerQuat = glm::rotate(rotatedControllerQuat, glm::radians(180.0f), glm::fvec3(0.0f, 0.0f, 1.0f));
     glm::fmat3 finalMtx = glm::toMat3(glm::inverse(rotatedControllerQuat));
 
     toBeAdjustedMtx.x_x = finalMtx[0][0];
