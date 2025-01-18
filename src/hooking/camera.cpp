@@ -46,7 +46,8 @@ void CemuHooks::hook_UpdateCameraPositionAndTarget(PPCInterpreter_t* hCPU) {
 
     // Current in-game camera matrix
     glm::fvec3 oldCameraPosition(origCameraMatrix.posX, origCameraMatrix.posY, origCameraMatrix.posZ);
-    glm::fvec3 oldCameraTarget(origCameraMatrix.targetX, origCameraMatrix.targetY, origCameraMatrix.targetZ);
+    // todo: test if third-person mode camera can still be controlled adequately with player movement stick
+    glm::fvec3 oldCameraTarget(origCameraMatrix.targetX, CemuHooks::GetSettings().IsFirstPersonMode() || true ? origCameraMatrix.posY : origCameraMatrix.targetY, origCameraMatrix.targetZ);
     float oldCameraDistance = glm::distance(oldCameraPosition, oldCameraTarget);
 
     // Calculate game view directions
