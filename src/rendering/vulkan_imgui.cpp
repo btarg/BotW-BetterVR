@@ -267,6 +267,10 @@ void RND_Vulkan::ImGuiOverlay::BeginFrame() {
         ImGui::PopStyleVar();
         ImGui::PopStyleVar();
     }
+
+#ifdef ENABLE_DEBUG_INSPECTOR
+    DrawEntityInspector();
+#endif
 }
 
 void RND_Vulkan::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio) {
