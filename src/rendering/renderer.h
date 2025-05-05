@@ -61,15 +61,13 @@ public:
         bool HasCopied() const { return m_copiedColor; };
         void StartRendering();
         void Render();
-        XrCompositionLayerQuad FinishRendering();
+        XrCompositionLayerQuad FinishRendering(XrTime predictedDisplayTime);
 
     private:
         std::unique_ptr<Swapchain<DXGI_FORMAT_R8G8B8A8_UNORM_SRGB>> m_swapchain;
         std::unique_ptr<RND_D3D12::PresentPipeline<false>> m_presentPipeline;
         std::unique_ptr<SharedTexture> m_texture;
         std::atomic_bool m_copiedColor = false;
-
-        XrTime m_predictedTime = 0;
 
         static constexpr float DISTANCE = 2.0f;
         static constexpr float LERP_SPEED = 0.05f;

@@ -56,7 +56,7 @@ void RND_Renderer::EndFrame() {
         // The HUD/menus aren't eye-specific, so present the most recent one for both eyes at once
         m_layer2D->StartRendering();
         m_layer2D->Render();
-        layer2D = m_layer2D->FinishRendering();
+        layer2D = m_layer2D->FinishRendering(m_frameState.predictedDisplayTime);
         compositionLayers.emplace_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer2D));
     }
 
@@ -360,18 +360,18 @@ void RND_Renderer::Layer2D::Render() {
         m_presentPipeline->Render(context->GetRecordList(), m_swapchain->GetTexture());
 
         m_texture->d3d12TransitionLayout(context->GetRecordList(), D3D12_RESOURCE_STATE_COPY_DEST);
-        context->Signal(m_texture.get(), 0);
+        context->Signal(m_texture.get(), SEMAPHORE_TO_VULKAN);
         Log::print("[D3D12 - 2D Layer] Signalling for 2D layer's texture to be 0");
     });
     m_copiedColor = false;
     Log::print("[D3D12 - 2D Layer] Rendering finished");
 }
 
-XrCompositionLayerQuad RND_Renderer::Layer2D::FinishRendering() {
+XrCompositionLayerQuad RND_Renderer::Layer2D::FinishRendering(XrTime predictedDisplayTime) {
     this->m_swapchain->FinishRendering();
 
     XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
-    xrLocateSpace(VRManager::instance().XR->m_headSpace, VRManager::instance().XR->m_stageSpace, m_predictedTime, &spaceLocation);
+    xrLocateSpace(VRManager::instance().XR->m_headSpace, VRManager::instance().XR->m_stageSpace, predictedDisplayTime, &spaceLocation);
     glm::quat headOrientation = glm::quat(spaceLocation.pose.orientation.w, spaceLocation.pose.orientation.x, spaceLocation.pose.orientation.y, spaceLocation.pose.orientation.z);
     glm::vec3 headPosition = glm::vec3(spaceLocation.pose.position.x, spaceLocation.pose.position.y, spaceLocation.pose.position.z);
 
