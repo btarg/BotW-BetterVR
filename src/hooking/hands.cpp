@@ -134,9 +134,37 @@ void CemuHooks::hook_ModifyHandModelAccessSearch(PPCInterpreter_t* hCPU) {
 
     if (actorName != nullptr) {
         // Weapon_R is presumably his right hand bone name
-        Log::print("Searching for model handle using {}", actorName);
+        Log::print("! Searching for model handle using {}", actorName);
     }
 #endif
+}
+
+
+void CemuHooks::hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    uint32_t weaponPtr = hCPU->gpr[3];
+    uint32_t parentActorPtr = hCPU->gpr[4];
+    Weapon weapon = {};
+    readMemory(weaponPtr, &weapon);
+
+    // Log::print("! doAttackMaybe - mode {}, flags {:08X}, multiplier {}, scale {}, shieldBreakPower {}, overrideImpact {}, powerForPlayers {}, impact {}, comboCount {}",
+    //     weapon.setupAttackSensor.mode.getLE(),
+    //     weapon.setupAttackSensor.flags.getLE(),
+    //     weapon.setupAttackSensor.multiplier.getLE(),
+    //     weapon.setupAttackSensor.scale.getLE(),
+    //     weapon.setupAttackSensor.shieldBreakPower.getLE(),
+    //     weapon.setupAttackSensor.overrideImpact.getLE(),
+    //     weapon.setupAttackSensor.powerForPlayers.getLE(),
+    //     weapon.setupAttackSensor.impact.getLE(),
+    //     weapon.setupAttackSensor.comboCount.getLE()
+    // );
+
+    weapon.setupAttackSensor.resetAttack = 1;
+    weapon.setupAttackSensor.mode = 2;
+    weapon.setupAttackSensor.setContactLayer = 0;
+
+    writeMemory(weaponPtr, &weapon);
 }
 
 void CemuHooks::hook_CreateNewActor(PPCInterpreter_t* hCPU) {

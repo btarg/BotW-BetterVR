@@ -39,3 +39,20 @@ void CemuHooks::hook_CreateNewScreen(PPCInterpreter_t* hCPU) {
     ScreenId screenId = (ScreenId)hCPU->gpr[5];
     Log::print("Switching to new screen \"{}\" with ID {:08X}...", screenName, std::to_underlying(screenId));
 }
+
+
+void CemuHooks::hook_OSReportToConsole(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    uint32_t strPtr = hCPU->gpr[3];
+    if (strPtr == 0) {
+        return;
+    }
+    char* str = (char*)(s_memoryBaseAddress + strPtr);
+    if (str == nullptr) {
+        return;
+    }
+    if (str[0] != '\0') {
+        Log::print("{}", str);
+    }
+}

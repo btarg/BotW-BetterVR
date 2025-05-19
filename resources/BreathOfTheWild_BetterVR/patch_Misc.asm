@@ -11,21 +11,9 @@ moduleMatches = 0x6267BFD0
 ;0x024AA7C4 = li r3, 0
 ;0x024AA7C8 = blr
 
-
-; Always have the weapons be physically active
-0x024AA7D0 = nop ; keeps weapon active
-0x024AA7E0 = nop ; keeps weapon active
-0x024AA7E8 = nop ; keeps weapon active
-
-0x024AA838 = li r12, 1 ; Weapon::isActive or smth
-0x024AA850 = nop ; Weapon::doAttachMaybe_inner0_0
-
-
-; disables all collisions (from camera presumably)
-0x030E47CC = li r3, 0
-0x030E47E4 = li r3, 0
-
-
+; disables all collisions (from camera presumably) ; EDIT: this description seems wrong, it's actually used in some camera stuff?
+0x030E47CC = li r3, 0 ; this prevents a jump to Actor::m56. Might be trying to get the actor's shouldRender flag or smth, and we are patching that?
+0x030E47E4 = li r3, 0 ; this does nothing, since its the same as the instruction it replaces: li r3, 0
 
 ; working VR physics swinging
 ;0x024AA8F4 = nop

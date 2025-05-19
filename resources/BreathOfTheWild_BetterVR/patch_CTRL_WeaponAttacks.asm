@@ -1,0 +1,115 @@
+[BetterVR_WeaponAttacks_V208]
+moduleMatches = 0x6267BFD0
+
+.origin = codecave
+
+
+
+hook_enableWeapon:
+mflr r0
+stwu r1, -0x20(r1)
+stw r0, 0x24(r1)
+stw r3, 0x1C(r1)
+stw r4, 0x18(r1)
+stw r5, 0x14(r1)
+
+mr r4, r3 ; r4 = Actor* parentActor
+mr r3, r31 ; r3 = Weapon* this
+bla import.coreinit.hook_EnableWeaponAttackSensor
+
+lwz r5, 0x14(r1)
+lwz r4, 0x18(r1)
+lwz r3, 0x1C(r1)
+lwz r0, 0x24(r1)
+mtlr r0
+addi r1, r1, 0x20
+
+lbz r0, 0x8A0(r31)
+blr
+
+0x024AA7C4 = bla hook_enableWeapon
+
+
+
+; Always have the weapons be physically active
+; 0x024AA7C4 = li r3, 1 ; Weapon::doAttackMaybe_inner0_0 -> if ( Weapon->weaponInner4.weaponInner4Inner.readyToBeReset ) is always true
+; 0x024AA7D4 = li r7, 2 ; Weapon::doAttackMaybe_inner0_0 -> if (p_weaponInner4Inner->attackMode != 0 && p_weaponInner4Inner->attackMode != 2) always uses attackMode 2 so that its always active
+
+; 0x024AA838 = li r12, 1 ; Weapon::doAttackMaybe_inner0_0 -> Weapon::isActive or Weapon::wasAttackMode2
+; 0x024AA848 = li r9, 1 ; Weapon::doAttachMaybe_inner0_0 -> if ( !Weapon->weaponInner4.weaponInner4Inner.setContactLayer ) is always true
+
+activateAttackSensor_formatString:
+.string "! ActiveAttackSensor( type = %u, attr = %08X, power = %f, impulse = %f, powerReduce = %f, weaponParams = %08X, shieldBreakPower = %u, powerForPlayer = %u )"
+
+custom_activateAttackSensor:
+; === original function ===
+stw r4, 0x10(r3) ; type
+stw r5, 0x14(r3) ; attrFlags
+stw r6, 0x1C(r3) ; powerOrDamage
+stw r7, 0x20(r3) ; impactOrImpulseValue
+stfs f1, 0x24(r3) ; powerReduce
+stw r8, 0x28(r3) ; weaponParams
+stw r9, 0x2C(r3) ; unk1_seemsZero
+stw r10, 0x30(r3) ; shieldBreakPower
+lwz r0, 0xC(r1)
+stw r0, 0x34(r3) ; powerForPlayer
+lwz r11, 0x10(r1)
+stw r11, 0x38(r3) ; unk2_minus1ForAttack
+lbz r12, 0xB(r1)
+stb r12, 0x40(r3) ; alwaysZeroSeemingly
+
+; === logging function ===
+mflr r0
+stwu r1, -0x40(r1)
+stw r0, 0x44(r1)
+stw r3, 0x3C(r1)
+stw r4, 0x38(r1)
+stw r5, 0x34(r1)
+stw r6, 0x30(r1)
+stfs f1, 0x2C(r1)
+stfs f2, 0x28(r1)
+stfs f3, 0x24(r1)
+stfs f4, 0x20(r1)
+stfs f5, 0x1C(r1)
+stfs f6, 0x18(r1)
+
+lwz r3, 0x3C(r1)
+; format string
+lis r5, activateAttackSensor_formatString@ha
+addi r5, r5, activateAttackSensor_formatString@l
+; r6 = type
+lwz r6, 0x10(r3)
+; r7 = attr
+lwz r7, 0x14(r3)
+; f1 = powerOrDamage
+lfs f1, 0x1C(r3)
+; f2 = impactOrImpulseValue
+lfs f2, 0x20(r3)
+; f3 = powerReduce
+lfs f3, 0x24(r3)
+; r8 = weaponParams
+lwz r8, 0x28(r3)
+; r9 = shieldBreakPower
+lwz r9, 0x30(r3)
+; r10 = powerForPlayer
+lwz r10, 0x34(r3)
+
+bl printToCemuConsoleWithFormat
+
+lfs f1, 0x2C(r1)
+lfs f2, 0x28(r1)
+lfs f3, 0x24(r1)
+lfs f4, 0x20(r1)
+lfs f5, 0x1C(r1)
+lfs f6, 0x18(r1)
+lwz r3, 0x3C(r1)
+lwz r4, 0x38(r1)
+lwz r5, 0x34(r1)
+lwz r6, 0x30(r1)
+lfs f1, 0x2C(r1)
+lwz r0, 0x44(r1)
+addi r1, r1, 0x40
+mtlr r0
+blr
+
+0x02C14F90 = ba custom_activateAttackSensor

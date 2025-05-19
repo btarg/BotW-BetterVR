@@ -22,7 +22,6 @@ stw r7, 0x18(r1)
 stw r8, 0x20(r1)
 stw r9, 0x24(r1)
 
-
 ; call C++ code to change the weapon mtx to the hand mtx
 lwz r3, 0x1C(r1) ; the source actor
 lwz r4, 0x18(r31) ; the char array of the weapon name

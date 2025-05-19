@@ -129,8 +129,65 @@ struct DamageMgr {
     BEType<uint8_t> field_4B;
 };
 
+struct AttackSensorInitArg {
+    BEType<uint32_t> mode;
+    BEType<uint32_t> flags;
+    BEType<float> multiplier;
+    BEType<float> scale;
+    BEType<uint32_t> shieldBreakPower;
+    BEType<uint8_t> overrideImpact;
+    BEType<uint8_t> unk_15;
+    BEType<uint8_t> unk_16;
+    BEType<uint8_t> unk_17;
+    BEType<uint32_t> powerForPlayers;
+    BEType<uint32_t> impact;
+    BEType<uint32_t> unk_20;
+    BEType<uint32_t> comboCount;
+    BEType<uint8_t> setContactLayer;
+    BEType<uint8_t> field_87C;
+    BEType<uint8_t> field_87D;
+    BEType<uint8_t> field_87E;
+    BEType<uint8_t> resetAttack;
+    BEType<uint8_t> field_8A2;
+    BEType<uint8_t> field_8A3;
+    BEType<uint8_t> field_8A4;
+};
+static_assert(sizeof(AttackSensorInitArg) == 0x30, "AttackSensorInitArg size mismatch");
+
+struct AttackSensorOtherArg {
+    BEType<uint32_t> flags;
+    BEType<uint32_t> shieldBreakPower;
+    BEType<uint8_t> overrideImpact;
+    BEType<uint8_t> field_09;
+    BEType<uint8_t> field_0A;
+    BEType<uint8_t> field_0B;
+    BEType<float> scale;
+    BEType<float> multiplier;
+    BEType<uint8_t> resetAttack;
+    BEType<uint8_t> wasAttackMode;
+    BEType<uint8_t> field_12;
+    BEType<uint8_t> field_13;
+    BEType<uint32_t> powerForPlayers;
+    BEType<uint32_t> impact;
+    BEType<uint32_t> comboCount;
+};
+static_assert(sizeof(AttackSensorOtherArg) == 0x24, "AttackSensorOtherArg size mismatch");
+
+enum WeaponType : uint32_t {
+    SmallSword = 0x0,
+    LargeSword = 0x1,
+    Spear = 0x2,
+    Bow = 0x3,
+    Shield = 0x4,
+    UnknownWeapon = 0x5,
+};
+
 struct Weapon : WeaponBase {
-    PADDED_BYTES(0x72C, 0x95C);
+    PADDED_BYTES(0x72C, 0x870);
+    AttackSensorInitArg setupAttackSensor;
+    PADDED_BYTES(0x8A4, 0x934);
+    BEType<WeaponType> type;
+    AttackSensorOtherArg finalizedAttackSensor;
     BEType<uint32_t> weaponShockwaves;
     PADDED_BYTES(0x964, 0x96C);
     BEType<uint32_t> field_974_triggerEventsMaybe;
@@ -179,3 +236,6 @@ static_assert(sizeof(ActorWiiU) == 0x53C);
 static_assert(sizeof(WeaponBase) == 0x72C);
 static_assert(sizeof(Weapon) == 0xB5C);
 static_assert(sizeof(DamageMgr) == 0x4C);
+
+static_assert(offsetof(Weapon, setupAttackSensor.resetAttack) == 0x8A0, "Weapon.setupAttackSensor.resetAttack offset mismatch");
+static_assert(offsetof(Weapon, setupAttackSensor.mode) == 0x874, "Weapon.setupAttackSensor.mode offset mismatch");

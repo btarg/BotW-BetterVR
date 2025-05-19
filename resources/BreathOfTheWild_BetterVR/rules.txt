@@ -17,6 +17,7 @@ $cameraDistance = 0.5
 $cameraHeight = -0.5
 $linkOpacity = 1.0
 $enableDebugOverlay:int = 0
+$leftHanded:int = 0
 
 
 # Camera Mode
@@ -48,6 +49,22 @@ $allowGamepadInput:int = 1
 name = Only Use VR Controllers (some inputs might require the gamepad)
 category = Motion & Gamepad Controls
 $allowGamepadInput:int = 0
+
+
+# Left Or Right Handed
+
+[Preset]
+name = Left-Handed Weapon (Shield On Right Hand)
+category = Left Or Right Handed
+condition = $cameraMode == 1
+$leftHanded:int = 1
+
+[Preset]
+name = Right-Handed Weapon (Default)
+category = Left Or Right Handed
+condition = $cameraMode == 1
+default = 1
+$leftHanded:int = 0
 
 
 # Enable 2D VR View

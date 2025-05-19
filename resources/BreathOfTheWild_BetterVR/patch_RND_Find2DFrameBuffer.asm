@@ -69,7 +69,6 @@ lis r3, str_printClear2DColorBuffer_right@ha
 addi r3, r3, str_printClear2DColorBuffer_right@l
 actualPrint_3:
 li r4, 10
-crxor 4*cr1+eq, 4*cr1+eq, 4*cr1+eq
 bl import.coreinit.hook_OSReportToConsole
 
 lwz r3, 0x1C(r1)

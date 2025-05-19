@@ -218,75 +218,23 @@ void CemuHooks::hook_GetRenderProjection(PPCInterpreter_t* hCPU) {
     }
 }
 
-void CemuHooks::hook_OSReportToConsole(PPCInterpreter_t* hCPU) {
+float previousAddedAngle = 0.0f;
+void CemuHooks::hook_ApplyCameraRotation(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
-    uint32_t strPtr = hCPU->gpr[3];
-    if (strPtr == 0) {
-        return;
-    }
-    char* str = (char*)(s_memoryBaseAddress + strPtr);
-    if (str == nullptr) {
-        return;
-    }
-    if (str[0] != '\0') {
-        Log::print("{}", str);
-    }
-}
-
-void CemuHooks::hook_OSReportToConsole2(PPCInterpreter_t* hCPU) {
-    hCPU->instructionPointer = hCPU->sprNew.LR;
-
-    uint32_t strPtr = hCPU->gpr[3];
-    if (strPtr == 0) {
-        return;
-    }
-    char* str = (char*)(s_memoryBaseAddress + strPtr);
-    if (str == nullptr) {
-        return;
-    }
-    if (str[0] != '\0') {
-        uint32_t arg1 = hCPU->gpr[4];
-        Log::print(str, arg1);
-    }
-}
-
-void CemuHooks::hook_OSReportToConsole3(PPCInterpreter_t* hCPU) {
-    hCPU->instructionPointer = hCPU->sprNew.LR;
-
-    uint32_t strPtr = hCPU->gpr[3];
-    if (strPtr == 0) {
-        return;
-    }
-    char* str = (char*)(s_memoryBaseAddress + strPtr);
-    if (str == nullptr) {
-        return;
-    }
-    if (str[0] != '\0') {
-        uint32_t arg1 = hCPU->gpr[4];
-        uint32_t arg2 = hCPU->gpr[5];
-        char* arg3 = (char*)(s_memoryBaseAddress + hCPU->gpr[6]);
-        uint32_t arg4 = hCPU->gpr[7];
-        Log::print(str, arg1, arg2, arg3, arg4);
-    }
-}
-
-void CemuHooks::hook_OSReportToConsole4(PPCInterpreter_t* hCPU) {
-    hCPU->instructionPointer = hCPU->sprNew.LR;
-
-    uint32_t strPtr = hCPU->gpr[3];
-    if (strPtr == 0) {
-        return;
-    }
-    char* str = (char*)(s_memoryBaseAddress + strPtr);
-    if (str == nullptr) {
-        return;
-    }
-    if (str[0] != '\0') {
-        uint32_t arg1 = hCPU->gpr[4];
-        uint32_t arg2 = hCPU->gpr[5];
-        Log::print(str, arg1, arg2);
-    }
+    // float degrees = hCPU->fpr[1].fp0;
+    // float addedAngle = degrees - previousAddedAngle;
+    // previousAddedAngle = degrees;
+    //
+    // // rotate the camera with whatever the OpenXR rotation is
+    // XrPosef currFOV = VRManager::instance().XR->GetRenderer()->GetPose(OpenXR::EyeSide::LEFT).value();
+    // glm::fquat currQuat = glm::fquat(currFOV.orientation.w, currFOV.orientation.x, currFOV.orientation.y, currFOV.orientation.z);
+    // glm::fquat rotateHorizontalCounter = glm::angleAxis(glm::radians(addedAngle), glm::fvec3(0.0f, 1.0f, 0.0f));
+    // currQuat = rotateHorizontalCounter * currQuat;
+    //
+    // float rotatedDegrees = glm::degrees(glm::atan(currQuat.x, currQuat.w));
+    //
+    // hCPU->fpr[1].fp0 = rotatedDegrees;
 }
 
 void CemuHooks::hook_EndCameraSide(PPCInterpreter_t* hCPU) {
@@ -304,7 +252,6 @@ void CemuHooks::hook_EndCameraSide(PPCInterpreter_t* hCPU) {
 }
 
 /*
-
 ===============================================================================
 RND_Renderer::StartFrame
 GX2DirectCallDisplayList(0x398860c0) LR = 03B4F1B0 CORE = 1 THREAD = 0E000700)

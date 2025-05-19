@@ -362,11 +362,16 @@ struct BEMatrix44 : BETypeCompatible {
 
 struct data_VRSettingsIn {
     BEType<int32_t> cameraModeSetting;
+    BEType<int32_t> leftHandedSetting;
     BEType<int32_t> guiFollowSetting;
     BEType<float> playerHeightSetting;
     BEType<int32_t> enable2DVRView;
     BEType<int32_t> cropFlatTo16x9Setting;
     BEType<int32_t> enableDebugOverlay;
+
+    bool IsLeftHanded() const {
+        return leftHandedSetting == 1;
+    }
 
     bool IsFirstPersonMode() const {
         return cameraModeSetting == 0;

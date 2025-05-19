@@ -8,6 +8,9 @@ data_settingsOffset:
 CameraModeSetting:
 .int $cameraMode
 
+LeftHandModeSetting:
+.int $leftHanded
+
 GUIFollowModeSetting:
 .int $guiFollowMode
 
