@@ -8,6 +8,7 @@
 #include <ranges>
 #include <set>
 #include <unordered_set>
+#include <queue>
 
 #include <Windows.h>
 #include <winrt/base.h>

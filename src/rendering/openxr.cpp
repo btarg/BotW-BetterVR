@@ -190,8 +190,8 @@ void OpenXR::CreateActions() {
     auto createAction = [this](const XrActionSet& actionSet, const char* id, const char* name, XrActionType actionType, XrAction& action) {
         XrActionCreateInfo actionInfo = { XR_TYPE_ACTION_CREATE_INFO };
         actionInfo.actionType = actionType;
-        strcpy_s(actionInfo.actionName, id);
-        strcpy_s(actionInfo.localizedActionName, name);
+        strncpy_s(actionInfo.actionName, id, XR_MAX_ACTION_NAME_SIZE-1);
+        strncpy_s(actionInfo.localizedActionName, name, XR_MAX_LOCALIZED_ACTION_NAME_SIZE-1);
         actionInfo.countSubactionPaths = (uint32_t)m_handPaths.size();
         actionInfo.subactionPaths = m_handPaths.data();
         checkXRResult(xrCreateAction(actionSet, &actionInfo, &action), std::format("Failed to create action for {}", id).c_str());
@@ -218,7 +218,7 @@ void OpenXR::CreateActions() {
         createAction(m_gameplayActionSet, "ingame_map", "Open/Close Map (Select Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inGame_mapAction);
         createAction(m_gameplayActionSet, "ingame_inventory", "Open/Close Inventory (Start Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inGame_inventoryAction);
 
-        // createAction(m_gameplayActionSet, "rumble", "Rumble", XR_ACTION_TYPE_VIBRATION_OUTPUT, m_rumbleAction);
+        createAction(m_gameplayActionSet, "rumble", "Rumble", XR_ACTION_TYPE_VIBRATION_OUTPUT, m_rumbleAction);
     }
 
     {
@@ -293,6 +293,9 @@ void OpenXR::CreateActions() {
 
             XrActionSuggestedBinding{ .action = m_jumpAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
             XrActionSuggestedBinding{ .action = m_cancelAction, .binding = GetXRPath("/user/hand/right/input/b/click") },
+
+            XrActionSuggestedBinding{ .action = m_rumbleAction, .binding = GetXRPath("/user/hand/left/output/haptic") },
+            XrActionSuggestedBinding{ .action = m_rumbleAction, .binding = GetXRPath("/user/hand/right/output/haptic") },
 
             // === menu suggestions ===
             XrActionSuggestedBinding{ .action = m_scrollAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
@@ -371,6 +374,9 @@ void OpenXR::CreateActions() {
         createInfo.poseInActionSpace = s_xrIdentityPose;
         checkXRResult(xrCreateActionSpace(m_session, &createInfo, &m_handSpaces[side]), "Failed to create action space for hand pose!");
     }
+
+    // initialize rumble manager
+    m_rumbleManager = std::make_unique<RumbleManager>(m_session, m_rumbleAction);
 }
 
 std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTime, glm::fquat controllerRotation, bool inMenu) {

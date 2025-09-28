@@ -76,6 +76,8 @@ target_sources(BetterVR_Layer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/controls.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/entity_debugger.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/entity_debugger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/rumble.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/rumble.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer.cpp

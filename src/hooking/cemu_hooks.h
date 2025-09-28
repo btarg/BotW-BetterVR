@@ -1,5 +1,6 @@
 #pragma once
 #include "entity_debugger.h"
+#include "rumble.h"
 
 class CemuHooks {
 public:
@@ -47,6 +48,9 @@ public:
         osLib_registerHLEFunction("coreinit", "hook_ModifyBoneMatrix", &hook_ModifyBoneMatrix);
         osLib_registerHLEFunction("coreinit", "hook_ModifyModelBoneMatrix", &hook_ModifyModelBoneMatrix);
         osLib_registerHLEFunction("coreinit", "hook_ModifyLightPrePassProjectionMatrix", &hook_ModifyLightPrePassProjectionMatrix);
+
+        osLib_registerHLEFunction("coreinit", "hook_XRRumble_VPADControlMotor", &hook_XRRumble_VPADControlMotor);
+        osLib_registerHLEFunction("coreinit", "hook_XRRumble_VPADStopMotor", &hook_XRRumble_VPADStopMotor);
     };
     ~CemuHooks() {
         FreeLibrary(m_cemuHandle);
@@ -109,6 +113,9 @@ private:
     static void hook_ModifyModelBoneMatrix(PPCInterpreter_t* hCPU);
 
     static void hook_ModifyLightPrePassProjectionMatrix(PPCInterpreter_t* hCPU);
+
+    static void hook_XRRumble_VPADControlMotor(PPCInterpreter_t* hCPU);
+    static void hook_XRRumble_VPADStopMotor(PPCInterpreter_t* hCPU);
 
 public:
     template <typename T>

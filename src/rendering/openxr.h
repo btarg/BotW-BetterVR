@@ -1,6 +1,6 @@
 #pragma once
 
-#include "swapchain.h"
+#include "hooking/rumble.h"
 
 class OpenXR {
     friend class RND_Renderer;
@@ -99,6 +99,7 @@ public:
 
     XrSession GetSession() const { return m_session; }
     RND_Renderer* GetRenderer() const { return m_renderer.get(); }
+    RumbleManager* GetRumbleManager() const { return m_rumbleManager.get(); }
 
 private:
     XrPath GetXRPath(const char* str) const {
@@ -146,6 +147,7 @@ private:
     XrAction m_inMenu_inventoryAction = XR_NULL_HANDLE;
 
     std::unique_ptr<RND_Renderer> m_renderer;
+    std::unique_ptr<RumbleManager> m_rumbleManager;
 
     constexpr static XrPosef s_xrIdentityPose = { .orientation = { .x = 0, .y = 0, .z = 0, .w = 1 }, .position = { .x = 0, .y = 0, .z = 0 } };
 

@@ -2,6 +2,7 @@
 
 #include "d3d12.h"
 #include "openxr.h"
+#include "swapchain.h"
 
 class SharedTexture;
 

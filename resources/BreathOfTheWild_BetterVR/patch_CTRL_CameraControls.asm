@@ -131,6 +131,8 @@ addi r1, r1, 0x20
 mtlr r0
 
 ; todo: disable this for third-person mode
+; todo: what about climbing, back of mipha during divine beast, etc.?
+; todo: rename variables to the camera mode we'll eventually use
 lis r3, cameraFinder@ha
 lwz r3, cameraFinder@l(r3)
 
