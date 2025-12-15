@@ -555,9 +555,9 @@ void CemuHooks::hook_GetEventName(PPCInterpreter_t* hCPU) {
         auto it = s_eventSettings.find(eventName);
         if (it != s_eventSettings.end()) {
             HybridEventSettings settings = it->second;
-            Log::print<VERBOSE>(" - First Person: {}", settings.firstPerson ? "ON" : "OFF");
-            Log::print<VERBOSE>(" - Ignore Camera Rotation: {}", settings.ignoreCameraRotation ? "ON" : "OFF");
-            Log::print<VERBOSE>(" - Disable Player-Driven Link Hands: {}", settings.disablePlayerDrivenLinkHands ? "ON" : "OFF");
+            Log::print<INFO>(" - First Person: {}", settings.firstPerson ? "ON" : "OFF");
+            Log::print<INFO>(" - Ignore Camera Rotation: {}", settings.ignoreCameraRotation ? "ON" : "OFF");
+            Log::print<INFO>(" - Disable Player-Driven Link Hands: {}", settings.disablePlayerDrivenLinkHands ? "ON" : "OFF");
             s_currentEventSettings = settings;
         }
         else {

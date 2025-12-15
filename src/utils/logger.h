@@ -254,10 +254,13 @@ public:
         if constexpr (!isLogTypeEnabled<L>()) {
             return;
         }
-#ifdef _DEBUG
         std::string messageStr = std::string(message) + "\n";
         DWORD charsWritten = 0;
         WriteConsoleA(consoleHandle, messageStr.c_str(), (DWORD)messageStr.size(), &charsWritten, NULL);
+#ifdef _DEBUG
+        //std::string messageStr = std::string(message) + "\n";
+        //DWORD charsWritten = 0;
+        //WriteConsoleA(consoleHandle, messageStr.c_str(), (DWORD)messageStr.size(), &charsWritten, NULL);
         OutputDebugStringA(messageStr.c_str());
 #else
         std::cout << message << std::endl;

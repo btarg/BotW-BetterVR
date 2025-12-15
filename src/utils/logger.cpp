@@ -2,6 +2,7 @@
 HANDLE Log::consoleHandle = NULL;
 double Log::timeFrequency = 0.0f;
 
+#define _DEBUG
 
 Log::Log() {
 #ifdef _DEBUG
