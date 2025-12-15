@@ -272,9 +272,7 @@ public:
         if constexpr (!isLogTypeEnabled<L>()) {
             return;
         }
-#ifdef _DEBUG
         Log::print<L>(std::vformat(format, std::make_format_args(args...)).c_str());
-#endif
     }
 
     static void printTimeElapsed(const char* message_prefix, LARGE_INTEGER time);

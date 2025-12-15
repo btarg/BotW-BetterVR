@@ -561,7 +561,7 @@ void CemuHooks::hook_GetEventName(PPCInterpreter_t* hCPU) {
             s_currentEventSettings = settings;
         }
         else {
-            Log::print<VERBOSE>(" - No specific settings found for this event, using defaults.");
+            Log::print<INFO>(" - No specific settings found for this event, using defaults.");
             s_currentEventSettings = defaultFirstPersonSettings;
         }
 
