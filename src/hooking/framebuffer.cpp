@@ -160,7 +160,7 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
                 if (hudCopied) {
                     // the 2D texture has already been copied to the layer
                     Log::print<RENDERING>("A 2D texture has already been copied for the current frame!");
-                    const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 1.0f, 0.0f, 1.0f };
+                    const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 0.0f, 0.0f, 0.0f };
                     return pDispatch->CmdClearColorImage(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
                 }
                 else {
