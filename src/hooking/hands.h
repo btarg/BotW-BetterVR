@@ -94,7 +94,7 @@ public:
 
     glm::fvec3 prev_AngularVelocity = glm::fvec3();
 
-    float handVelocityLenght = 0.0f;
+    float handVelocityLength = 0.0f;
 
     void Update(const XrSpaceLocation& handLocation, const XrSpaceVelocity& handVelocity, const glm::fmat4& headsetMtx, const XrTime inputTime) {
         // Get velocity expressed in controller space
@@ -107,7 +107,7 @@ public:
         const glm::fvec3 headsetPostion = glm::fvec3(headsetMtx[3]);
         const glm::fquat headsetRotation = glm::quat_cast(headsetMtx); // Angular rotation vector
 
-        handVelocityLenght = glm::length(linearVelocity);
+        handVelocityLength = glm::length(linearVelocity);
 
         m_rollingSamples[m_rollingSamplesIt] = {
             .time = inputTime,

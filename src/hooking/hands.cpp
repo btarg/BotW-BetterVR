@@ -332,7 +332,7 @@ void CemuHooks::hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU) {
     }
 
     //rumbles
-    float handVelocity = m_motionAnalyzers[heldIndex].handVelocityLenght;
+    float handVelocity = m_motionAnalyzers[heldIndex].handVelocityLength;
     Log::print<INFO>("velocity lenght : {}", handVelocity);
     if (handVelocity >= 2.0f)
     {
