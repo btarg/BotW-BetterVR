@@ -110,6 +110,10 @@ public:
     std::atomic<glm::fquat> m_inputCameraRotation = glm::identity<glm::fquat>();
 
     struct GameState {
+        std::chrono::steady_clock::time_point m_lastUpdateTime; // used as delta time for framerate independent logic
+        bool m_firstFrame = true; // used as delta time for framerate independent logic
+        float deltaTime = 0.0f;
+
         bool in_game = false;
         bool was_in_game = false;
         bool map_open = false;
@@ -126,7 +130,7 @@ public:
     std::array<XrViewConfigurationView, 2> GetViewConfigurations();
     std::optional<XrSpaceLocation> UpdateSpaces(XrTime predictedDisplayTime);
     std::optional<InputState> UpdateActions(XrTime predictedFrameTime, glm::fquat controllerRotation, bool inMenu);
-   
+    void ProcessDeltaTime();
     void ProcessEvents();
 
     XrSession GetSession() const { return m_session; }

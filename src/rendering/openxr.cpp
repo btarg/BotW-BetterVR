@@ -676,6 +676,25 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
     return newState;
 }
 
+void OpenXR::ProcessDeltaTime() {
+    auto currentTime = std::chrono::steady_clock::now();
+    auto gameState = VRManager::instance().XR->m_gameState.load();
+    if (gameState.m_firstFrame) {
+        gameState.m_lastUpdateTime = currentTime;
+        gameState.m_firstFrame = false;
+        VRManager::instance().XR->m_gameState.store(gameState);
+        return;
+    }
+    // Calculate dt in seconds
+    std::chrono::duration<float> elapsed = currentTime - gameState.m_lastUpdateTime;
+    float dt = elapsed.count();
+    gameState.m_lastUpdateTime = currentTime;
+
+    // Ensure dt is sane (prevents spikes after a long pause/lag)
+    gameState.deltaTime = std::min(dt, 0.1f);
+    VRManager::instance().XR->m_gameState.store(gameState);
+}
+
 
 std::optional<XrSpaceLocation> OpenXR::UpdateSpaces(XrTime predictedDisplayTime) {
     XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };

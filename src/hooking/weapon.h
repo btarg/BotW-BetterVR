@@ -43,8 +43,9 @@ struct WeaponProfile {
     float stab_AngularSteadinessThreshold; // maximum angular velocity away from stab direction
     float stab_travelDistance; // distance before stab activates
 
-    float slash_SpeedThreshold; // minimum angular velocity for swing detection
-    float slash_AccThreshold; // minimum angular acceleration for swing detection (acceleration is purely derived from the magnitudes of the angular velocities projected into xy (removing twist))
+    float slash_LinearSpeedThreshold;
+    float slash_AngularSpeedThreshold; // minimum angular velocity for swing detection
+    float slash_AngularAccThreshold; // minimum angular acceleration for swing detection (acceleration is purely derived from the magnitudes of the angular velocities projected into xy (removing twist))
     float slash_SteadinessThreshold; // maximum angular velocity away from swing direction
     float slash_travelAngle; // angle in [rad] before slash activates
     float slash_AccDriftThreshold; // angular velocity allowed between vectors of angular velocity from sample to sample
@@ -62,8 +63,9 @@ struct SpearProfile : WeaponProfile {
         stab_AngularSteadinessThreshold = glm::pi<float>() / 18; // [rad] Use 10 deg cone
         stab_travelDistance = 0.3f;
 
-        slash_SpeedThreshold = 7.0f;
-        slash_AccThreshold = 7.0f;
+        slash_LinearSpeedThreshold = 2.5f;
+        slash_AngularSpeedThreshold = 1.0f;
+        slash_AngularAccThreshold = 7.0f;
         slash_SteadinessThreshold = glm::cos(glm::pi<float>() / 4); // 45 deg | portion of direction vector of normalized angular velocity pointed in the right direction
         slash_travelAngle = glm::pi<float>()/6.0f; // 30 deg minimum
         slash_AccDriftThreshold = 0.2f;
@@ -75,7 +77,7 @@ public:
     WeaponMotionAnalyser() = default;
 
     static constexpr int MAX_SAMPLES = 90;
-    static constexpr int BAD_SAMPLES_BUFFER = 1;
+    static constexpr float BAD_SAMPLES_TIMER = 0.02f;
     static constexpr std::chrono::nanoseconds GOOD_SAMPLES_BEFORE_GOOD_STAB = std::chrono::milliseconds(4);
 
     static constexpr float HAND_VELOCITY_LENGTH_THRESHOLD = 2.0f;
@@ -102,6 +104,8 @@ public:
     float handVelocityLength = 0.0f;
 
     void Update(const XrSpaceLocation& handLocation, const XrSpaceVelocity& handVelocity, const glm::fmat4& headsetMtx, const XrTime inputTime) {
+        float deltaTime = VRManager::instance().XR->m_gameState.load().deltaTime;
+        
         // Get velocity expressed in controller space
         const glm::fvec3 linearVelocity = ToGLM(handVelocity.linearVelocity);
         const glm::fvec3 angularVelocity = ToGLM(handVelocity.angularVelocity);
@@ -142,13 +146,12 @@ public:
         //Log::print("!! is_attacking: );
         // ---- Find local velocities & accelerations -----
         const glm::fvec3 localLinearVelocity = glm::inverse(rotation) * linearVelocity;
-        float dt = (float)(inputTime - prev_sample) / 1000000000.0f;
-        const glm::fvec3 localLinearAcceleration = (localLinearVelocity - prev_lin_vel) / glm::fvec3(dt); // TODO: add stab_acc threshold | Make stab continue as long as velocity follows acceleration (<0)
+        const glm::fvec3 localLinearAcceleration = (localLinearVelocity - prev_lin_vel) / glm::fvec3(deltaTime); // TODO: add stab_acc threshold | Make stab continue as long as velocity follows acceleration (<0)
 
         // ---- find angular velocity drift ----
         // Log::print<CONTROLS>("angvel: {} \n prev_av: {}\ndt: {}\n dot: {}\nacos: {}", angularVelocity, prev_AngularVelocity, dt, glm::dot(angularVelocity, prev_AngularVelocity), acos(glm::dot(angularVelocity, prev_AngularVelocity)));
 
-        float angular_drift = acos(glm::dot(glm::normalize(angularVelocity), glm::normalize(prev_AngularVelocity)))/dt; // Angular velocity drift (defined as the angular velocity of the rotating angular velocity i.e. how much rad/s the orthogonal vector of rotation moves)
+        float angular_drift = acos(glm::dot(glm::normalize(angularVelocity), glm::normalize(prev_AngularVelocity)))/deltaTime; // Angular velocity drift (defined as the angular velocity of the rotating angular velocity i.e. how much rad/s the orthogonal vector of rotation moves)
 
         m_rollingSamples[m_lastSampleIdx].rotLinearAccel = localLinearAcceleration;
 
@@ -162,7 +165,7 @@ public:
         
         // --- Get approximation of angular acceleration over xy plane ---
         glm::fvec3 flat_ang_vel = localAngularVelocity - (glm::fvec3(.0, .0, localAngularVelocity.z)); // Get rotation vector over xy plane
-        float flat_ang_acc = (glm::length(flat_ang_vel) - glm::length(prev_ang_vel))/dt;
+        float flat_ang_acc = (glm::length(flat_ang_vel) - glm::length(prev_ang_vel))/deltaTime;
 
         prev_ang_vel = flat_ang_vel;
         
@@ -173,22 +176,22 @@ public:
         profile.stab_LinearSteadinessThreshold = glm::cos(glm::pi<float>() / 4.5); // 15 deg accuracy cone
         profile.stab_AngularSteadinessThreshold = 4.5; // [rad/s]
         profile.stab_travelDistance = 0.15f;
-        profile.slash_SpeedThreshold = 1.0f;
-        profile.slash_AccThreshold = 20.0f;
+        profile.slash_AngularSpeedThreshold = 1.0f;
+        profile.slash_AngularAccThreshold = 7.0f;
         profile.slash_AccDriftThreshold = 10.0f; // use [rad/s^2]
-        COOLDOWN_TIME = 0.0f*1e9; // TODO: DIFFERENT COOLDOWN FOR STABS AND SWINGS
+        COOLDOWN_TIME = 1e9 * 0.15f; // TODO: DIFFERENT COOLDOWN FOR STABS AND SWINGS
 
         //Log::print("!! steadiness: {} / {}", glm::normalize(localAngularVelocity).y, profile.slash_SteadinessThreshold);
         profile.slash_travelAngle = glm::pi<float>() / 6;
         // Detect velocity threshold -> set attack type if not in attack & store original angle/position
         AttackType prev_attack = m_lockedAttackType;
 
-        detect_attack_type(localLinearVelocity, localLinearAcceleration, localAngularVelocity, flat_ang_acc, position, rotation, swing_is_forwards);
+        detect_attack_type(deltaTime, localLinearVelocity, localLinearAcceleration, localAngularVelocity, flat_ang_acc, position, rotation, swing_is_forwards);
 
         // Log::print("!! attack_state: {}", (int)m_lockedAttackType);
 
         // Check if attack falls within weaponprofile velocity & angle margins -> if not cancel attack & go back to checking for attack
-        check_attack_steadiness(localLinearVelocity, localAngularVelocity, angular_drift);
+        check_attack_steadiness(deltaTime, localLinearVelocity, localAngularVelocity, angular_drift);
         //Log::print("!! m_badSampleCtr: {}", m_badSampleCtr);
 
         // Check if delta_angle/delta_translation is enough to enable attack mode
@@ -215,9 +218,9 @@ public:
         prev_sample = inputTime;
     }
 
-    void detect_attack_type(const glm::fvec3 localLinearVelocity, const glm::fvec3 localLinearAcceleration, const glm::fvec3 localAngularVelocity, const float flag_ang_acc, const glm::fvec3 position, const glm::fquat rotation, const bool swing_is_forward) {
+    void detect_attack_type(float deltaTime, const glm::fvec3 localLinearVelocity, const glm::fvec3 localLinearAcceleration, const glm::fvec3 localAngularVelocity, const float flag_ang_acc, const glm::fvec3 position, const glm::fquat rotation, const bool swing_is_forward) {
         // Log::print<CONTROLS>("[WeaponMotionAnalyser] Detecting attack type with linear velocity: {}, attack type = {}, active: {}", localLinearVelocity, static_cast<int>(m_lockedAttackType), static_cast<int>(m_attackActivity));
-
+        
         if (m_lockedAttackType == AttackType::None) {
             glm::fvec3 dir_ang = glm::normalize(localAngularVelocity);
             glm::fvec3 stab_ang = glm::normalize(localLinearVelocity);
@@ -229,39 +232,42 @@ public:
                 if (time_since_last_attack[int(AttackType::Stab)-1] >= COOLDOWN_TIME) {
                     // Log::print<CONTROLS>("Failed due to: {}", );
                     m_lockedPosition = position;
-                    m_goodStabSampleCtr++;
+                    m_goodStabTimer += deltaTime;
                     Log::print<CONTROLS>("Stab detect attack");
-                    if (m_goodStabSampleCtr > 1) {
+                    if (m_goodStabTimer > STAB_REQUIRED_DURATION) {
                         m_lockedAttackType = AttackType::Stab;
                     }
                 };
                 
             }else {
-                m_goodStabSampleCtr = 0;
+                m_goodStabTimer = 0.0f;
             }
-            if (flag_ang_acc > profile.slash_AccThreshold && !swing_is_forward) {
+            if (flag_ang_acc > profile.slash_AngularAccThreshold && !swing_is_forward) {
                 Log::print<CONTROLS>("Slash detected but not forward");
             }
-            if (/*abs(dir_ang.x) > profile.slash_SteadinessThreshold &&*/ flag_ang_acc > profile.slash_AccThreshold /*&& swing_is_forward*/) {
+
+            auto length = glm::length(localLinearVelocity);
+            //Log::print<INFO>("lenght {}", length);
+            if (length > profile.slash_LinearSpeedThreshold /*&& flag_ang_acc > profile.slash_AngularAccThreshold*/) {
                 if (time_since_last_attack[int(AttackType::Slash)-1] >= COOLDOWN_TIME) {
                     // Log::print<CONTROLS>("cooldown currently: {}/{}", time_since_last_attack[int(AttackType::Slash) - 1], COOLDOWN_TIME);
 
-                    m_goodSwingSampleCtr++;
+                    m_goodSwingTimer += deltaTime;
                     m_lockedAngle = rotation * glm::fvec3(0.0f, 0.0f, 1.0f); // store z-axis
                     Log::print<CONTROLS>("slash attack detected");
-                    if (m_goodSwingSampleCtr > 1) {
+                    if (m_goodSwingTimer > SWING_REQUIRED_DURATION) {
                         m_lockedAttackType = AttackType::Slash;
                         //Log::print<CONTROLS>("Initiate swing");
                     }
                 }
             }
             else {
-                m_goodSwingSampleCtr = 0;
+                m_goodSwingTimer = 0.0f;
             }
         }
     }
 
-    void check_attack_steadiness(const glm::fvec3 localLinearVelocity, const glm::fvec3 localAngularVelocity, const float angular_drift) {
+    void check_attack_steadiness(float deltaTime, const glm::fvec3 localLinearVelocity, const glm::fvec3 localAngularVelocity, const float angular_drift) {
         // check steadiness condition for attack types
         switch (m_lockedAttackType) {
             case AttackType::None: { 
@@ -272,7 +278,7 @@ public:
                 glm::fvec3 stab_ang = glm::normalize(localLinearVelocity);
 
                 if (abs(stab_ang.z) < profile.stab_LinearSteadinessThreshold || -localLinearVelocity.z < profile.stab_SpeedThreshold || glm::length(glm::fvec3(localAngularVelocity.x, localAngularVelocity.y, 0.0)) > profile.stab_AngularSteadinessThreshold || abs(localAngularVelocity).x > profile.stab_AngularSteadinessThreshold) {
-                    m_badSampleCtr++;
+                    m_badSampleTimer += deltaTime;
                     bool speed_issue = abs(stab_ang.z) < profile.stab_LinearSteadinessThreshold && abs(localAngularVelocity).x > profile.stab_AngularSteadinessThreshold && abs(localAngularVelocity).x > profile.stab_AngularSteadinessThreshold;
                     // Log::print<CONTROLS>("Failed due to {}", speed_issue ? "Speed is too low" : "Steadiness is too shit");
                     //if (speed_issue) {
@@ -280,7 +286,7 @@ public:
                     //}
                 }
                 else {
-                    m_badSampleCtr = 0;
+                    m_badSampleTimer = 0.0f;
                     //Log::print<CONTROLS>("Speed is {}", -localLinearVelocity);
                 }
                 break;
@@ -290,28 +296,28 @@ public:
                 // Log::print<CONTROLS>("velocity ok: {}/{}: {}", glm::length(localAngularVelocity - glm::fvec3(.0, .0, localAngularVelocity.z)), profile.slash_SpeedThreshold, glm::length(localAngularVelocity - glm::fvec3(.0, .0, localAngularVelocity.z)) < profile.slash_SpeedThreshold);
 
                 // Log::print<CONTROLS>("angular drift: {}/{}: {}", angular_drift, profile.slash_AccDriftThreshold, angular_drift > profile.slash_AccDriftThreshold);
-                if (/*abs(dir_ang.x) < profile.slash_SteadinessThreshold ||*/ angular_drift > profile.slash_AccDriftThreshold || glm::length(glm::fvec3(localAngularVelocity.x, localAngularVelocity.y, 0.0f)) < profile.slash_SpeedThreshold) { // abs( - localAngularVelocity.x) < profile.slash_SpeedThreshold * 0.2f TODO: SLash speed should be directional (i.e. reversing slash direction should end it). During locking: store sign of swing direction, check if this is still valid here.
+                if (/*abs(dir_ang.x) < profile.slash_SteadinessThreshold ||*/ angular_drift > profile.slash_AccDriftThreshold || glm::length(glm::fvec3(localAngularVelocity.x, localAngularVelocity.y, 0.0f)) < profile.slash_AngularSpeedThreshold) { // abs( - localAngularVelocity.x) < profile.slash_SpeedThreshold * 0.2f TODO: SLash speed should be directional (i.e. reversing slash direction should end it). During locking: store sign of swing direction, check if this is still valid here.
                     bool drift_fail = angular_drift > profile.slash_AccDriftThreshold;
                     
                     if (drift_fail) {
                         Log::print<CONTROLS>("[FAIL]: Drift: {}/{}",  angular_drift, profile.slash_AccDriftThreshold);
                     }
                     else {
-                        Log::print<CONTROLS>("[FAIL]: Angular velocity: {}/{}", glm::length(glm::fvec3(localAngularVelocity.x, localAngularVelocity.y, 0.0f)), profile.slash_SpeedThreshold);
+                        Log::print<CONTROLS>("[FAIL]: Angular velocity: {}/{}", glm::length(glm::fvec3(localAngularVelocity.x, localAngularVelocity.y, 0.0f)), profile.slash_AngularSpeedThreshold);
                     }
                     
-                    m_badSampleCtr++;
+                    m_badSampleTimer += deltaTime;
                 }
                 else {
-                    m_badSampleCtr  = 0;
+                    m_badSampleTimer = 0.0f;
                 }
                 break;
             }
         }
         
         // Remove attack type if too many bad samples
-        if (m_badSampleCtr >= BAD_SAMPLES_BUFFER) {
-            m_badSampleCtr = 0;
+        if (m_badSampleTimer >= BAD_SAMPLES_TIMER) {
+            m_badSampleTimer = 0.0f;
             //Log::print<CONTROLS>("removed attack due to bad samples");
             m_lockedAttackType = AttackType::None;
         }
@@ -368,35 +374,36 @@ public:
 
     float GetAttackImpulse() const {
         if (m_lockedAttackType == AttackType::Slash) {
-            return std::clamp((float)m_goodSwingSampleCtr / 5.0f, 0.0f, 1.0f);
+            return std::clamp(m_goodSwingTimer / 5.0f, 0.0f, 1.0f);
         }
         else if (m_lockedAttackType == AttackType::Stab) {
-            return std::clamp((float)m_goodStabSampleCtr / 5.0f, 0.0f, 1.0f);
+            return std::clamp(m_goodStabTimer/ 5.0f, 0.0f, 1.0f);
         }
         return 0.0f;
     }
 
     float GetAttackDamage() const {
         if (m_lockedAttackType == AttackType::Slash) {
-            return std::clamp((float)m_goodSwingSampleCtr / 5.0f, 0.0f, 1.0f);
+            // If a "full strength" swing takes 0.2 seconds:
+            return std::clamp(m_goodSwingTimer / 0.2f, 0.0f, 1.0f);
         }
         else if (m_lockedAttackType == AttackType::Stab) {
-            return std::clamp((float)m_goodStabSampleCtr / 5.0f, 0.0f, 1.0f);
+            return std::clamp(m_goodStabTimer / 0.2f, 0.0f, 1.0f);
         }
         return 0.0f;
     }
 
     void ResetSwing() {
-        m_goodSwingSampleCtr = 0;
-        m_badSwingSampleCtr = 0;
+        m_goodSwingTimer = 0.0f;
+        m_badSwingTimer = 0.0f;
         if (m_lockedAttackType == AttackType::Slash) {
             m_lockedAttackType = AttackType::None;
         }
     }
 
     void ResetStab() {
-        m_goodStabSampleCtr = 0;
-        m_badStabSampleCtr = 0;
+        m_goodStabTimer = 0.0f;
+        m_badStabTimer = 0.0f;
         if (m_lockedAttackType == AttackType::Stab) {
             m_lockedAttackType = AttackType::None;
         }
@@ -420,7 +427,7 @@ public:
         ImGui::TextColored(ImVec4(1, 1, 0, 1), "Weapon Motion Debugger");
         ImGui::Text("Weapon Type: %d", static_cast<int>(m_weaponType));
         ImGui::Text("Sample %d / %d", m_lastSampleIdx, MAX_SAMPLES);
-        ImGui::Text("Bad samples: %d   Good samples: %d", m_badSwingSampleCtr, m_goodSwingSampleCtr);
+        ImGui::Text("Bad samples: %d   Good samples: %d", m_badSwingTimer, m_goodSwingTimer);
 
         const auto oldestIdx = [this](uint32_t j) { return (m_lastSampleIdx + j) % MAX_SAMPLES; };
 
@@ -586,16 +593,18 @@ private:
     uint32_t m_lastSampleIdx = 0;
     uint32_t m_rollingSamplesIt = 0;
 
-    uint32_t m_goodSwingSampleCtr = 0;
-    uint32_t m_badSwingSampleCtr = 0;
+    float m_goodSwingTimer = 0.0f;
+    const float SWING_REQUIRED_DURATION = 0.02f;
+    float m_badSwingTimer = 0.0f;
     bool m_attackActivity = false;
     bool m_isHitboxEnabled = false;
-    uint32_t m_badSampleCtr = 0;
+    float m_badSampleTimer = 0.0f;
     AttackType m_lockedAttackType = AttackType::None;
     glm::fvec3 m_lockedPosition = {};
     glm::fvec3 m_lockedAngle = {};
-    uint32_t m_goodStabSampleCtr = 0;
-    uint32_t m_badStabSampleCtr = 0;
+    float m_goodStabTimer = 0.0f;
+    const float STAB_REQUIRED_DURATION = 0.02f;
+    float m_badStabTimer = 0.0f;
 
     mutable glm::vec3 m_debugLastAngDir = {1, 0, 0};
     mutable bool m_debugAngValid = false;

@@ -100,6 +100,8 @@ JoyDir GetJoystickDirection(const XrVector2f& stick)
 void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
+    VRManager::instance().XR->ProcessDeltaTime();
+
     auto mapXRButtonToVpad = [](XrActionStateBoolean& state, VPADButtons mapping) -> uint32_t {
         return state.currentState ? mapping : 0;
     };
