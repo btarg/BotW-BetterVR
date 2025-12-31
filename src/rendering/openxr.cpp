@@ -351,8 +351,8 @@ void OpenXR::CreateActions() {
             XrActionSuggestedBinding{ .action = m_moveAction, .binding = GetXRPath("/user/hand/left/input/thumbstick") },
             XrActionSuggestedBinding{ .action = m_cameraAction, .binding = GetXRPath("/user/hand/right/input/thumbstick") },
 
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/force/value") },
-            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/force/value") },
+            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/left/input/squeeze/force") },
+            XrActionSuggestedBinding{ .action = m_grabAction, .binding = GetXRPath("/user/hand/right/input/squeeze/force") },
             XrActionSuggestedBinding{ .action = m_interactAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
             XrActionSuggestedBinding{ .action = m_cancelAction, .binding = GetXRPath("/user/hand/right/input/a/click") },
 
