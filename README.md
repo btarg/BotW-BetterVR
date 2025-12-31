@@ -47,9 +47,9 @@ While more integrated solutions are being found out, there's probably ways to se
 >   * *Alt Fix:* Throw the weapon or cycle through weapons in the inventory menu.
 >   * *Last Resort:* Teleport to a tower/shrine or reload your save.
 > * Third-person mode (and cutscenes) often has the player being partially/largely invisible.
-> * Our AMD GPU system has a crash after the load screen, which we're working on fixing.
 > * Gravity is higher. Jumping isn't affected, but some shrines might require creative solutions/glitches for now.
 > * Some towers can't be unlocked and cause the cutscene to softlock.
+> ~~* Our AMD GPU system has a crash after the load screen, which we're working on fixing.~~ This is fixed now!
 
 **Audio & Visuals**
 - Slight audio crackling may occur when loading the game or opening menus quickly.
